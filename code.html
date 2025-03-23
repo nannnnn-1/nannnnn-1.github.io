@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>代码检查</title>
+    <!-- 修改CDN链接为https -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/vs2015.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/highlight.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/languages/javascript.min.js" defer></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html.min.js"></script>
+    <style>
+        .container {
+            margin: 20px;
+            padding: 20px;
+        }
+        .code-area {
+            position: relative;
+            width: 100%;
+            min-height: 200px;
+            font-family: monospace;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: auto;
+        }
+        .code-area pre {
+            margin: 0;
+            padding: 15px;
+        }
+        .check-button {
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .apply-button {
+            padding: 8px 16px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .diff-container {
+            display: none;
+            margin-top: 20px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        .code-line {
+            display: block;
+            transition: background-color 0.3s ease;
+        }
+        
+        .code-line.checking {
+            background-color: rgba(105, 255, 46, 0.712);
+            transform: translateX(5px);
+            transition: all 0.3s ease;
+        }
+        
+        /* 移除之前的scan-line相关样式 */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="codeAreaContainer" class="code-area">
+            <pre><code class="language-python"><span class="code-line">import os</span>
+<span class="code-line">import cv2</span>
+<span class="code-line">import h5py</span>
+<span class="code-line">import random</span>
+<span class="code-line">import numpy as np</span>
+<span class="code-line">from tqdm import tqdm</span>
+<span class="code-line">class Views_HDF5(Dataset):</span>
+<span class="code-line">    def __init__(self, HDF5path, training=False):</span>
+<span class="code-line">        pass</span>
+<span class="code-line">    @staticmethod</span>
+<span class="code-line">    def aug(img, ann):</span>
+<span class="code-line">        def color_distortion(image):</span>
+<span class="code-line">            # 随机改变图像的亮度、对比度和饱和度</span>
+<span class="code-line">            alpha = 1.0 + np.random.uniform(-0.5, 0.5)  # 亮度</span>
+<span class="code-line">            beta = 0.5 + np.random.uniform(-0.5, 0.5)   # 对比度</span>
+<span class="code-line">            saturation_scale = 0.5 + np.random.uniform(0, 1)  # 饱和度</span>
+<span class="code-line">            image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)</span>
+<span class="code-line">            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)</span>
+<span class="code-line">            # 调整饱和度</span>
+<span class="code-line">            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)</span>
+<span class="code-line">            distorted_image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)</span>
+<span class="code-line">            return distorted_image</span>
+<span class="code-line">        def gaussian_noise(image):</span>
+<span class="code-line">            pass</span></code></pre>
+        </div>
+        <button id="checkButton" class="check-button">检查代码</button>
+        <!-- <button id="applyButton" class="apply-button">应用修改</button> -->
+        <div id="diffContainer" class="diff-container">
+            <div id="diffView"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeAreaContainer = document.getElementById('codeAreaContainer');
+            const checkButton = document.getElementById('checkButton');
+            const applyButton = document.getElementById('applyButton');
+            const diffContainer = document.getElementById('diffContainer');
+            const diffView = document.getElementById('diffView');
+            const codeLines = document.querySelectorAll('.code-line');
+
+            const correctedCode = `import os
+import cv2
+import h5py
+import random
+import numpy as np
+from tqdm import tqdm
+
+class Views_HDF5(Dataset):
+    def __init__(self, HDF5path, training=False):
+        pass
+
+    @staticmethod
+    def aug(img, ann):
+        def color_distortion(image):
+            # 随机改变图像的亮度、对比度和饱和度
+            alpha = 1.0 + np.random.uniform(-0.3, 0.3)  # 减小亮度变化范围
+            beta = 0.5 + np.random.uniform(-0.3, 0.3)   # 减小对比度变化范围
+            saturation_scale = 0.8 + np.random.uniform(0, 0.4)  # 调整饱和度范围
+            
+            # 确保图像类型正确
+            image = image.astype(np.float32)
+            
+            image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
+            
+            # 调整饱和度，使用更安全的范围
+            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)
+            
+            # 转换回BGR并确保数值范围正确
+            distorted_image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+            return distorted_image
+
+        def gaussian_noise(image):
+            pass`;
+
+            async function checkCodeWithAnimation() {
+                // 逐行检查动画
+                for (let line of codeLines) {
+                    line.classList.add('checking');
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    line.classList.remove('checking');
+                }
+
+                // 隐藏原代码区域，显示diff和应用按钮
+                codeAreaContainer.style.display = 'none';
+                checkButton.style.display = 'none';
+                diffContainer.style.display = 'block';
+                // applyButton.style.display = 'inline-block';
+
+                // 显示diff结果
+                const currentCode = document.querySelector('.code-area code').textContent;
+                const diffStr = `
+--- a/original.py
++++ b/suggested.py
+@@ -1,14 +1,17 @@
+ def color_distortion(image):
+     # 随机改变图像的亮度、对比度和饱和度
+-    alpha = 1.0 + np.random.uniform(-0.5, 0.5)  # 亮度
+-    beta = 0.5 + np.random.uniform(-0.5, 0.5)   # 对比度
+-    saturation_scale = 0.5 + np.random.uniform(0, 1)  # 饱和度
++    alpha = 1.0 + np.random.uniform(-0.3, 0.3)  # 减小亮度变化范围
++    beta = 0.5 + np.random.uniform(-0.3, 0.3)   # 减小对比度变化范围
++    saturation_scale = 0.8 + np.random.uniform(0, 0.4)  # 调整饱和度范围
++    
++    # 确保图像类型正确
++    image = image.astype(np.float32)
+     
+     image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
+-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
++    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
+     
+-    # 调整饱和度
++    # 调整饱和度，使用更安全的范围
+     hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)
+     
+-    distorted_image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
++    # 转换回BGR并确保数值范围正确
++    distorted_image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
+     return distorted_image`;
+                const diffJson = Diff2Html.parse(diffStr);
+                const diffHtml = Diff2Html.html(diffJson, {
+                    drawFileList: false,
+                    matching: 'lines',
+                    outputFormat: 'side-by-side'
+                });
+                diffView.innerHTML = diffHtml;
+            }
+
+            // applyButton.addEventListener('click', () => {
+            //     // 隐藏diff和应用按钮
+            //     diffContainer.style.display = 'none';
+            //     applyButton.style.display = 'none';
+
+            //     // 更新并显示代码区域
+            //     const codeElement = codeAreaContainer.querySelector('code');
+            //     codeElement.innerHTML = correctedCode.split('\n').map(line => 
+            //         `<span class="code-line">${line}</span>`
+            //     ).join('\n');
+            //     codeAreaContainer.style.display = 'block';
+            // });
+
+            checkButton.addEventListener('click', checkCodeWithAnimation);
+        });
+    </script>
+</body>
+</html>
