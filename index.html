@@ -96,7 +96,7 @@
 <span class="code-line">            pass</span></code></pre>
         </div>
         <button id="checkButton" class="check-button">检查代码</button>
-        <!-- <button id="applyButton" class="apply-button">应用修改</button> -->
+        <button id="applyButton" class="apply-button">应用修改</button>
         <div id="diffContainer" class="diff-container">
             <div id="diffView"></div>
         </div>
@@ -158,7 +158,7 @@ class Views_HDF5(Dataset):
                 codeAreaContainer.style.display = 'none';
                 checkButton.style.display = 'none';
                 diffContainer.style.display = 'block';
-                // applyButton.style.display = 'inline-block';
+                applyButton.style.display = 'inline-block';
 
                 // 显示diff结果
                 const currentCode = document.querySelector('.code-area code').textContent;
@@ -199,21 +199,23 @@ class Views_HDF5(Dataset):
                 diffView.innerHTML = diffHtml;
             }
 
-            // applyButton.addEventListener('click', () => {
-            //     // 隐藏diff和应用按钮
-            //     diffContainer.style.display = 'none';
-            //     applyButton.style.display = 'none';
+            applyButton.addEventListener('click', () => {
+                // 隐藏diff和应用按钮
+                diffContainer.style.display = 'none';
+                applyButton.style.display = 'none';
 
-            //     // 更新并显示代码区域
-            //     const codeElement = codeAreaContainer.querySelector('code');
-            //     codeElement.innerHTML = correctedCode.split('\n').map(line => 
-            //         `<span class="code-line">${line}</span>`
-            //     ).join('\n');
-            //     codeAreaContainer.style.display = 'block';
-            // });
+                // 更新并显示代码区域
+                const codeElement = codeAreaContainer.querySelector('code');
+                codeElement.innerHTML = correctedCode.split('\n').map(line => 
+                    `<span class="code-line">${line}</span>`
+                ).join('\n');
+                codeAreaContainer.style.display = 'block';
+                checkButton.style.display = 'inline-block';
+            });
 
             checkButton.addEventListener('click', checkCodeWithAnimation);
         });
     </script>
 </body>
 </html>
+
