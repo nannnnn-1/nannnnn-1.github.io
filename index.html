@@ -69,9 +69,9 @@
 </head>
 <body>
     <div class="container">
-        <div id="codeAreaContainer" class="code-area">
+        <div id="codeAreaContainer" class="code-area" contenteditable="true" Spellcheck='false'>
             <pre><code class="language-python"><span class="code-line">import os</span>
-<span class="code-line">import cv2</span>
+<span  class="code-line">import cv2</span>
 <span class="code-line">import h5py</span>
 <span class="code-line">import random</span>
 <span class="code-line">import numpy as np</span>
@@ -95,7 +95,7 @@
 <span class="code-line">        def gaussian_noise(image):</span>
 <span class="code-line">            pass</span></code></pre>
         </div>
-        <button id="checkButton" class="check-button">大模型辅助修改代码</button>
+        <button id="checkButton" class="check-button">大模型辅助代码修改</button>
         <button id="applyButton" class="apply-button">应用修改</button>
         <div id="diffContainer" class="diff-container">
             <div id="diffView"></div>
@@ -218,4 +218,3 @@ class Views_HDF5(Dataset):
     </script>
 </body>
 </html>
-
