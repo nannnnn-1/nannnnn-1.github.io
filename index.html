@@ -446,7 +446,6 @@ class Views_HDF5(Dataset):
 -    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 +    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
      
--    # 调整饱和度
      hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)
      
 -    distorted_image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
