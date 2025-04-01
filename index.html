@@ -9,6 +9,8 @@
     <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/languages/javascript.min.js" defer></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css">
     <script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
     <style>
         .container {
             margin: 20px;
@@ -18,6 +20,7 @@
             position: relative;
             width: 100%;
             min-height: 200px;
+            max-height:700px;
             font-family: monospace;
             margin-bottom: 10px;
             border: 1px solid #ddd;
@@ -62,6 +65,13 @@
             background-color: rgba(105, 255, 46, 0.712);
             transform: translateX(5px);
             transition: all 0.3s ease;
+            animation: highlight-pulse 0.6s ease infinite;
+        }
+
+        @keyframes highlight-pulse {
+            0% { background-color: rgba(105, 255, 46, 0.3); }
+            50% { background-color: rgba(105, 255, 46, 0.7); }
+            100% { background-color: rgba(105, 255, 46, 0.3); }
         }
         
         /* 移除之前的scan-line相关样式 */
@@ -70,30 +80,245 @@
 <body>
     <div class="container">
         <div id="codeAreaContainer" class="code-area" contenteditable="true" Spellcheck='false'>
-            <pre><code class="language-python"><span class="code-line">import os</span>
-<span  class="code-line">import cv2</span>
+            <pre><code class="language-python">
+<span class="code-line">import os</span>
+<span class="code-line">import cv2</span>
 <span class="code-line">import h5py</span>
 <span class="code-line">import random</span>
 <span class="code-line">import numpy as np</span>
 <span class="code-line">from tqdm import tqdm</span>
+<span class="code-line">import torch</span>
+<span class="code-line">import torch.nn as nn</span>
+<span class="code-line">import torch.optim as optim</span>
+<span class="code-line">import torch.nn.functional as F</span>
+<span class="code-line">from torch.utils.data.dataset import Dataset</span>
+<span class="code-line">from torch.utils.data import DataLoader</span>
+<span class="code-line">from torch.cuda.amp import autocast, GradScaler</span>
+<span class="code-line">from utils.metrics import Evaluator</span>
+<span class="code-line">from utils.net_utils import loadWeight, EarlyStopping, checkFile, seed_torch, count_trainable_params</span>
+<span class="code-line">from build import *</span>
+<span class="code-line">from Fed import FedTrain</span>
+<span class="code-line">from utils.path import checkPath, photo_metric_distortion, normalize_function</span>
+<span class="code-line"># TODO</span>
+<span class="code-line">from configs.args1024 import settings</span>
+<span class="code-line"># 设置随机种子</span>
+<span class="code-line">seed_torch()</span>
+<span class="code-line">os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:40"</span>
+<span class="code-line"># 定义加载网络模型的函数</span>
+<span class="code-line">def loadNet(args: settings):</span>
+<span class="code-line">    net = build_model(args)</span>
+<span class="code-line">    pth_best = os.path.join(args.pth_path, f"{args.pth_name}_best.pth")</span>
+<span class="code-line">    assert os.path.isfile(pth_best)</span>
+<span class="code-line">    loadWeight(path=pth_best, net=net)</span>
+<span class="code-line">    net.eval()</span>
+<span class="code-line">    return net</span>
+<span class="code-line"># 自定义数据集类，用于处理HDF5格式的数据</span>
 <span class="code-line">class Views_HDF5(Dataset):</span>
 <span class="code-line">    def __init__(self, HDF5path, training=False):</span>
-<span class="code-line">        pass</span>
+<span class="code-line">        super(Views_HDF5, self).__init__()</span>
+<span class="code-line">        if not os.path.exists(HDF5path):</span>
+<span class="code-line">            raise FileNotFoundError(f"HDF5 file not found: {HDF5path}")</span>
+<span class="code-line">        if not h5py.is_hdf5(HDF5path):</span>
+<span class="code-line">            raise ValueError(f"Invalid HDF5 file: {HDF5path}")</span>
+<span class="code-line">        hf = h5py.File(HDF5path)</span>
+<span class="code-line">        self.images = hf["images"]</span>
+<span class="code-line">        self.labels = hf["labels"]</span>
+<span class="code-line">        self.training = training</span>
+<span class="code-line">    def __len__(self):</span>
+<span class="code-line">        return self.labels.shape[0]</span>
+<span class="code-line">    def __getitem__(self, idx):</span>
+<span class="code-line">        img = self.images[idx]</span>
+<span class="code-line">        ann = self.labels[idx]</span>
+<span class="code-line">        if self.training:</span>
+<span class="code-line">            img, ann = self.aug(img, ann)  # 数据增强</span>
+<span class="code-line">        maskTensor = torch.from_numpy(ann).type(torch.LongTensor)</span>
+<span class="code-line">        out = {</span>
+<span class="code-line">            "img": normalize_function(img),</span>
+<span class="code-line">            "mask": maskTensor</span>
+<span class="code-line">        }</span>
+<span class="code-line">        return out</span>
 <span class="code-line">    @staticmethod</span>
 <span class="code-line">    def aug(img, ann):</span>
 <span class="code-line">        def color_distortion(image):</span>
 <span class="code-line">            # 随机改变图像的亮度、对比度和饱和度</span>
-<span class="code-line">            alpha = 1.0 + np.random.uniform(-0.5, 0.5)  # 亮度</span>
-<span class="code-line">            beta = 0.5 + np.random.uniform(-0.5, 0.5)   # 对比度</span>
-<span class="code-line">            saturation_scale = 0.5 + np.random.uniform(0, 1)  # 饱和度</span>
+<span class="code-line">            alpha = 1.0 + np.random.uniform(-0.3, 0.3)  # 减小亮度变化范围</span>
+<span class="code-line">            beta = 0.5 + np.random.uniform(-0.3, 0.3)   # 减小对比度变化范围</span>
+<span class="code-line">            saturation_scale = 0.8 + np.random.uniform(0, 0.4)  # 调整饱和度范围</span>
+                
+<span class="code-line">            # 确保图像类型正确</span>
+<span class="code-line">            image = image.astype(np.float32)</span>
+                
 <span class="code-line">            image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)</span>
-<span class="code-line">            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)</span>
-<span class="code-line">            # 调整饱和度</span>
+<span class="code-line">            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)</span>
+                
+<span class="code-line">            # 调整饱和度，使用更安全的范围</span>
 <span class="code-line">            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)</span>
-<span class="code-line">            distorted_image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)</span>
+                
+<span class="code-line">            # 转换回BGR并确保数值范围正确</span>
+<span class="code-line">            distorted_image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)</span>
 <span class="code-line">            return distorted_image</span>
 <span class="code-line">        def gaussian_noise(image):</span>
-<span class="code-line">            pass</span></code></pre>
+<span class="code-line">            row, col, ch = image.shape</span>
+<span class="code-line">            mean = 0</span>
+<span class="code-line">            var = 0.1</span>
+<span class="code-line">            sigma = var ** 0.5</span>
+<span class="code-line">            gauss = np.random.normal(mean, sigma, (row, col, ch))</span>
+<span class="code-line">            noisy = np.clip(image + gauss * 255, 0, 255).astype(np.uint8)</span>
+<span class="code-line">            return noisy</span>
+<span class="code-line">        def random_cover(image):</span>
+<span class="code-line">            row, col, ch = image.shape</span>
+<span class="code-line">            r = random.randint(8, row // 8)</span>
+<span class="code-line">            c = random.randint(8, col // 8)</span>
+<span class="code-line">            m = np.zeros((r, c, ch))</span>
+<span class="code-line">            sr = random.randint(0, row - r - 1)</span>
+<span class="code-line">            sc = random.randint(0, col - c - 1)</span>
+<span class="code-line">            image[sr:sr + r, sc:sc + c, :] = m</span>
+<span class="code-line">            return image</span>
+<span class="code-line">        if random.random() &lt; 0.5:</span>
+<span class="code-line">            flip_type = random.choice([0, 1])</span>
+<span class="code-line">            img = cv2.flip(img, flip_type)</span>
+<span class="code-line">            ann = cv2.flip(ann, flip_type)</span>
+<span class="code-line">        return img, ann</span>
+<span class="code-line"># 训练函数</span>
+<span class="code-line">def train(task_args):</span>
+<span class="code-line">    size = task_args.size</span>
+<span class="code-line">    # 设置GPU</span>
+<span class="code-line">    print(torch.cuda.device_count())</span>
+<span class="code-line">    assert torch.cuda.device_count() &gt; 0</span>
+<span class="code-line">    device = torch.device("cuda:0")</span>
+<span class="code-line">    d1 = 1</span>
+<span class="code-line">    print(f"==============[{task_args.data}]==============")</span>
+<span class="code-line">    if task_args.data == "FBP":</span>
+<span class="code-line">        pth_root = rf"./weight/FBP_normal_sswinl_upernet{size}_{d1}"</span>
+<span class="code-line">        args = settings(segHead="upernet", downsample=d1, backbone="sswin_l", isContext=False)</span>
+<span class="code-line">    elif task_args.data == "water":</span>
+<span class="code-line">        pth_root = rf"./weight/{task_args.user}/{task_args.taskName}"</span>
+<span class="code-line">        args = settings(segHead=task_args.segHead, data_type="water", downsample=d1, backbone=task_args.backbone, isContext=False)</span>
+<span class="code-line">    elif task_args.data == "building":</span>
+<span class="code-line">        # pth_root = rf"./weight/{task_args.user}/{task_args.taskName}/building_normal_sswinl_upernet_{size}_{d1}"</span>
+<span class="code-line">        pth_root = rf"./weight/{task_args.user}/{task_args.taskName}"</span>
+<span class="code-line">        # args = settings(segHead="upernet", data_type="building", downsample=d1, backbone="sswin_l", isContext=False)</span>
+<span class="code-line">        args = settings(segHead=task_args.segHead, data_type="building", downsample=d1, backbone=task_args.backbone, isContext=False)</span>
+<span class="code-line">    else:</span>
+<span class="code-line">        raise ValueError</span>
+<span class="code-line">    # 加载训练集和验证集</span>
+<span class="code-line">    checkPath(path=pth_root)</span>
+<span class="code-line">    train_data = Views_HDF5(HDF5path=os.path.join(f"./data/platform/{task_args.data}/train",</span>
+<span class="code-line">                                                  "train.h5"),</span>
+<span class="code-line">                            training=True)</span>
+<span class="code-line">    train_loader = DataLoader(train_data,</span>
+<span class="code-line">                              batch_size=task_args.batchsize,</span>
+<span class="code-line">                              num_workers=0,</span>
+<span class="code-line">                              shuffle=True,</span>
+<span class="code-line">                              drop_last=True)</span>
+<span class="code-line">    val_data = Views_HDF5(HDF5path=os.path.join(f"./data/platform/{task_args.data}/val",</span>
+<span class="code-line">                                                "val.h5"))</span>
+<span class="code-line">    val_loader = DataLoader(val_data,</span>
+<span class="code-line">                            batch_size=1,</span>
+<span class="code-line">                            shuffle=True,</span>
+<span class="code-line">                            drop_last=True)</span>
+<span class="code-line">    # 模型加载</span>
+<span class="code-line">    net1 = build_model(args=args)</span>
+<span class="code-line">    path = os.path.join(pth_root, "best.pth")</span>
+<span class="code-line">    if os.path.isfile(path):</span>
+<span class="code-line">        print(f"Loading net from : {path}")</span>
+<span class="code-line">        check = torch.load(path)</span>
+<span class="code-line">        net1.load_state_dict(check)</span>
+<span class="code-line">    net1.to(device)</span>
+<span class="code-line">    # 优化器</span>
+<span class="code-line">    optimizer, scheduler = build_optimizer(net=net1, args=args)</span>
+<span class="code-line">    evaluator, earlystopping = build_evaluator(args)</span>
+<span class="code-line">    earlystopping.criterion = 0</span>
+<span class="code-line">    # 创建损失函数</span>
+<span class="code-line">    criterion = build_loss(args)</span>
+<span class="code-line">    # 训练过程</span>
+<span class="code-line">    max_epochs = task_args.epoch</span>
+<span class="code-line">    print(f"max epochs:{max_epochs}")</span>
+<span class="code-line">    torch.save(net1.state_dict(), os.path.join(pth_root, f"0.pth"))</span>
+<span class="code-line">    for epoch in range(1, max_epochs + 1):</span>
+<span class="code-line">        print(f"##########################[{epoch}]##########################")</span>
+<span class="code-line">        print(f"Training [{epoch}]:")</span>
+<span class="code-line">        # training</span>
+<span class="code-line">        net1.train()</span>
+<span class="code-line">        print("learn rate = {:.9f}".format(optimizer.param_groups[0]['lr']))</span>
+<span class="code-line">        print("learn rate = {:.9f}".format(optimizer.param_groups[-1]['lr']))</span>
+<span class="code-line">        bar_train = tqdm(train_loader, desc=f'Train::', position=0, leave=True, mininterval=60)</span>
+<span class="code-line">        epoch_loss = 0.0  # 累计总损失</span>
+<span class="code-line">        total_batches = 0</span>
+<span class="code-line">        # 获取图像和标签，进行训练</span>
+<span class="code-line">        for idx, batch in enumerate(bar_train):</span>
+<span class="code-line">            torch.cuda.empty_cache()</span>
+<span class="code-line">            img1 = batch["img"].to(device)</span>
+<span class="code-line">            mask = batch["mask"].to(device)</span>
+<span class="code-line">            torch.cuda.empty_cache()</span>
+<span class="code-line">            out = net1(img1)</span>
+<span class="code-line">            loss = criterion(out, mask)</span>
+<span class="code-line">            net1.zero_grad()</span>
+<span class="code-line">            (loss["loss_tot"]).backward()</span>
+<span class="code-line">            optimizer.step()</span>
+<span class="code-line">            epoch_loss += loss["loss_tot"].item()</span>
+<span class="code-line">            total_batches += 1</span>
+<span class="code-line">            # 每2两个batch 更新进度条和统计信息</span>
+<span class="code-line">            if idx % 2 == 0:</span>
+<span class="code-line">                postfix_args = {k: "{:.5f}".format(v.item()) for k, v in loss.items() \</span>
+<span class="code-line">                                if k in ("loss_tot", "loss_ce", "loss_mask", "loss_dice")}</span>
+<span class="code-line">                bar_train.set_postfix(**postfix_args)</span>
+<span class="code-line">                bar_train.update()</span>
+<span class="code-line">        avg_epoch_loss = epoch_loss / total_batches</span>
+<span class="code-line">        # 保存当前的权重</span>
+<span class="code-line">        torch.save(net1.state_dict(), os.path.join(pth_root, f"{epoch}.pth"))</span>
+<span class="code-line">        print(f"{epoch}.pth was saved to {pth_root}")</span>
+<span class="code-line">        if checkFile(path=os.path.join(pth_root, f"{epoch - 1}.pth")):</span>
+<span class="code-line">            os.remove(os.path.join(pth_root, f"{epoch - 1}.pth"))</span>
+<span class="code-line">        # 验证阶段</span>
+<span class="code-line">        net1.eval()</span>
+<span class="code-line">        print(f"Validation [{epoch}]:")</span>
+<span class="code-line">        torch.cuda.empty_cache()</span>
+<span class="code-line">        bar_val = tqdm(val_loader, desc=f'Val::', position=0, leave=True, mininterval=60)</span>
+<span class="code-line">        evaluator.reset()</span>
+<span class="code-line">        with torch.no_grad():</span>
+<span class="code-line">            for idx, batch in enumerate(bar_val):</span>
+<span class="code-line">                img1 = batch["img"].to(device)</span>
+<span class="code-line">                outputs = net1(img1)</span>
+<span class="code-line">                gt = batch["mask"].to(device)</span>
+<span class="code-line">                # pred = outputs[:, 1:, :, :]  # TODO FBP</span>
+<span class="code-line">                pred = outputs</span>
+<span class="code-line">                pre = np.argmax(pred.cpu().numpy(), axis=1)[0]</span>
+<span class="code-line">                gt = gt.squeeze(0).cpu().numpy()</span>
+<span class="code-line">                evaluator.add_batch(gt, pre)</span>
+<span class="code-line">                if idx % 2 == 0:</span>
+<span class="code-line">                    postfix_args1 = {"id": f"{idx}"}</span>
+<span class="code-line">                    bar_val.set_postfix(**postfix_args1)</span>
+<span class="code-line">                    bar_val.update()</span>
+<span class="code-line">        MIoU = evaluator.Mean_Intersection_over_Union()</span>
+<span class="code-line">        print(f"Epoch {epoch} - MIoU = {MIoU:.4f} - loss = {avg_epoch_loss:.4f}")</span>
+<span class="code-line">        #print(f"MIoU = {MIoU}")</span>
+<span class="code-line">        if earlystopping.CheckStopping(new_criterion=MIoU):</span>
+<span class="code-line">            torch.save(net1.state_dict(), os.path.join(pth_root, "best.pth"))</span>
+<span class="code-line">            print("BETTER MODEL SAVED")</span>
+<span class="code-line">        scheduler.step(earlystopping.criterion)</span>
+<span class="code-line">        print(f"best_MIoU = {earlystopping.criterion}")</span>
+<span class="code-line">        if earlystopping.EarlyStopping:</span>
+<span class="code-line">            print("EarlyStooping")</span>
+<span class="code-line">            return</span>
+<span class="code-line">if __name__ == "__main__":</span>
+<span class="code-line">    import argparse</span>
+<span class="code-line">    parser = argparse.ArgumentParser('Set PFNetPlus Train', add_help=False)</span>
+<span class="code-line">    parser.add_argument('--data', type=str, default="water")</span>
+<span class="code-line">    parser.add_argument('--user', type=str)</span>
+<span class="code-line">    parser.add_argument('--dataset', type=str)</span>
+<span class="code-line">    parser.add_argument('--size', type=int)</span>
+<span class="code-line">    parser.add_argument('--batchsize', type=int)</span>
+<span class="code-line">    parser.add_argument('--backbone', type=str)</span>
+<span class="code-line">    parser.add_argument('--segHead', type=str)</span>
+<span class="code-line">    # parser.add_argument('--optimizer', type=str)</span>
+<span class="code-line">    # parser.add_argument('--loss', type=str)</span>
+<span class="code-line">    parser.add_argument('--epoch', type=int)</span>
+<span class="code-line">    parser.add_argument('--taskName', type=str)</span>
+<span class="code-line">    task_args = parser.parse_args()</span>
+<span class="code-line">    print(f"==============[{task_args.data}]==============")</span>
+<span class="code-line">    train(task_args)</span>
+</code></pre>
         </div>
         <button id="checkButton" class="check-button">大模型辅助代码修改</button>
         <button id="applyButton" class="apply-button">应用修改</button>
@@ -103,6 +328,7 @@
     </div>
 
     <script>
+        
         document.addEventListener('DOMContentLoaded', function() {
             const codeAreaContainer = document.getElementById('codeAreaContainer');
             const checkButton = document.getElementById('checkButton');
@@ -145,21 +371,59 @@ class Views_HDF5(Dataset):
 
         def gaussian_noise(image):
             pass`;
-
+            hljs.highlightAll();
             async function checkCodeWithAnimation() {
-                // 逐行检查动画
-                for (let line of codeLines) {
+                // 创建一个临时的代码容器用于动画
+                const tempContainer = document.createElement('div');
+                tempContainer.style.cssText = codeAreaContainer.style.cssText;
+                tempContainer.className = codeAreaContainer.className;
+                
+                // 复制代码内容，但不包含highlight.js的格式化
+                const plainCode = Array.from(codeLines).map(line => 
+                    `<span class="code-line">${line.textContent}</span>`
+                ).join('\n');
+                
+                tempContainer.innerHTML = `<pre><code class="language-python">${plainCode}</code></pre>`;
+                
+                // 暂时隐藏原始代码区域，显示临时容器
+                codeAreaContainer.style.display = 'none';
+                codeAreaContainer.parentNode.insertBefore(tempContainer, codeAreaContainer);
+                
+                // 执行动画检查
+                const tempCodeLines = tempContainer.querySelectorAll('.code-line');
+                const delay = 50;
+                let lastScrollTime = 0;
+                
+                for (let line of tempCodeLines) {
+                    const now = Date.now();
                     line.classList.add('checking');
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                    
+                    if (now - lastScrollTime > delay) {
+                        await new Promise(resolve => {
+                            requestAnimationFrame(() => {
+                                const containerRect = tempContainer.getBoundingClientRect();
+                                const lineRect = line.getBoundingClientRect();
+                                const relativeTop = lineRect.top - containerRect.top;
+                                tempContainer.scrollTop = 
+                                    tempContainer.scrollTop + relativeTop - containerRect.height/2;
+                                lastScrollTime = now;
+                                resolve();
+                            });
+                        });
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, delay));
                     line.classList.remove('checking');
                 }
-
-                // 隐藏原代码区域，显示diff和应用按钮
-                codeAreaContainer.style.display = 'none';
-                checkButton.style.display = 'none';
+                
+                // 移除临时容器
+                tempContainer.remove();
+                
+                // 显示diff
                 diffContainer.style.display = 'block';
                 applyButton.style.display = 'inline-block';
-
+                checkButton.style.display = 'none';
+                
                 // 显示diff结果
                 const currentCode = document.querySelector('.code-area code').textContent;
                 const diffStr = `
@@ -204,14 +468,76 @@ class Views_HDF5(Dataset):
                 diffContainer.style.display = 'none';
                 applyButton.style.display = 'none';
 
+                // 保存原始代码内容
+                const originalCode = document.querySelector('.code-area code').innerHTML;
+                
                 // 更新并显示代码区域
                 const codeElement = codeAreaContainer.querySelector('code');
-                codeElement.innerHTML = correctedCode.split('\n').map(line => 
-                    `<span class="code-line">${line}</span>`
-                ).join('\n');
+                
+                // 创建临时容器来保持完整的代码结构
+                const tempElement = document.createElement('div');
+                tempElement.innerHTML = originalCode;
+                
+                // 查找并更新color_distortion函数的内容
+                const codeLines = tempElement.querySelectorAll('.code-line');
+                let inColorDistortion = false;
+                let colorDistortionEnd = false;
+                
+                for (let i = 0; i < codeLines.length; i++) {
+                    const line = codeLines[i];
+                    if (line.textContent.includes('def color_distortion(image):')) {
+                        inColorDistortion = true;
+                        continue;
+                    }
+                    
+                    if (inColorDistortion && !colorDistortionEnd) {
+                        if (line.textContent.includes('def gaussian_noise(image):')) {
+                            colorDistortionEnd = true;
+                            continue;
+                        }
+                        
+                        // 更新color_distortion函数的内容
+                        if (line.textContent.includes('alpha =')) {
+                            line.textContent = '            alpha = 1.0 + np.random.uniform(-0.3, 0.3)  # 减小亮度变化范围';
+                        } else if (line.textContent.includes('beta =')) {
+                            line.textContent = '            beta = 0.5 + np.random.uniform(-0.3, 0.3)   # 减小对比度变化范围';
+                        } else if (line.textContent.includes('saturation_scale =')) {
+                            line.textContent = '            saturation_scale = 0.8 + np.random.uniform(0, 0.4)  # 调整饱和度范围';
+                        }
+                        // 添加新的类型转换和注释
+                        else if (line.textContent.includes('image = cv2.convertScaleAbs')) {
+                            const newLines = [
+                                '            # 确保图像类型正确',
+                                '            image = image.astype(np.float32)',
+                                '',
+                                '            image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)'
+                            ];
+                            line.textContent = newLines.join('\n');
+                        }
+                        // 更新HSV转换和处理部分
+                        else if (line.textContent.includes('hsv = cv2.cvtColor')) {
+                            line.textContent = '            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)';
+                        }
+                        else if (line.textContent.includes('hsv[:, :, 1] = np.clip')) {
+                            line.textContent = '            # 调整饱和度，使用更安全的范围\n' +
+                                             '            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)';
+                        }
+                        else if (line.textContent.includes('distorted_image = cv2.cvtColor')) {
+                            line.textContent = '            # 转换回BGR并确保数值范围正确\n' +
+                                             '            distorted_image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)';
+                        }
+                    }
+                }
+                
+                // 更新代码内容
+                codeElement.innerHTML = tempElement.innerHTML;
+                
+                // 重新应用语法高亮
                 codeAreaContainer.style.display = 'block';
                 checkButton.style.display = 'inline-block';
+                hljs.highlightElement(codeElement);
             });
+
             checkButton.addEventListener('click', checkCodeWithAnimation);
         });
     </script>
