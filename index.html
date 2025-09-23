@@ -1,543 +1,619 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>代码检查</title>
-    <!-- 修改CDN链接为https -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/styles/vs2015.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/highlight.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.7.0/languages/javascript.min.js" defer></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html/bundles/css/diff2html.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/diff2html/bundles/js/diff2html.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/default.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D飞行预览</title>
     <style>
-        .container {
-            margin: 20px;
-            padding: 20px;
-        }
-        .code-area {
-            position: relative;
-            width: 100%;
-            min-height: 200px;
-            max-height:700px;
-            font-family: monospace;
-            margin-bottom: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            overflow: auto;
-        }
-        .code-area pre {
+        html, body {
+            height: 100%;
             margin: 0;
-            padding: 15px;
-        }
-        .check-button {
-            padding: 8px 16px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-bottom: 20px;
-        }
-        .apply-button {
-            padding: 8px 16px;
-            background: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-bottom: 20px;
-            display: none;
-        }
-        .diff-container {
-            display: none;
-            margin-top: 20px;
-            border: 1px solid #eee;
-            border-radius: 4px;
-        }
-        .code-line {
-            display: block;
-            transition: background-color 0.3s ease;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         
-        .code-line.checking {
-            background-color: rgba(105, 255, 46, 0.712);
-            transform: translateX(5px);
+        #container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            padding: 12px 20px;
+            background: #007AFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
             transition: all 0.3s ease;
-            animation: highlight-pulse 0.6s ease infinite;
-        }
-
-        @keyframes highlight-pulse {
-            0% { background-color: rgba(105, 255, 46, 0.3); }
-            50% { background-color: rgba(105, 255, 46, 0.7); }
-            100% { background-color: rgba(105, 255, 46, 0.3); }
         }
         
-        /* 移除之前的scan-line相关样式 */
+        .control-btn:hover {
+            background: #0056CC;
+            transform: translateY(-1px);
+        }
+        
+        .control-btn:active {
+            transform: translateY(0);
+        }
+        
+        .control-btn.active {
+            background: #FF3B30;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            min-width: 200px;
+        }
+        
+        .info-item {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .info-label {
+            font-weight: 500;
+        }
+        
+        .info-value {
+            color: #FFD700;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #333;
+            border-top: 3px solid #007AFF;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background: #FF3B30;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 300px;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="codeAreaContainer" class="code-area" contenteditable="true" Spellcheck='false'>
-            <pre><code class="language-python">
-<span class="code-line">import os</span>
-<span class="code-line">import cv2</span>
-<span class="code-line">import h5py</span>
-<span class="code-line">import random</span>
-<span class="code-line">import numpy as np</span>
-<span class="code-line">from tqdm import tqdm</span>
-<span class="code-line">import torch</span>
-<span class="code-line">import torch.nn as nn</span>
-<span class="code-line">import torch.optim as optim</span>
-<span class="code-line">import torch.nn.functional as F</span>
-<span class="code-line">from torch.utils.data.dataset import Dataset</span>
-<span class="code-line">from torch.utils.data import DataLoader</span>
-<span class="code-line">from torch.cuda.amp import autocast, GradScaler</span>
-<span class="code-line">from utils.metrics import Evaluator</span>
-<span class="code-line">from utils.net_utils import loadWeight, EarlyStopping, checkFile, seed_torch, count_trainable_params</span>
-<span class="code-line">from build import *</span>
-<span class="code-line">from Fed import FedTrain</span>
-<span class="code-line">from utils.path import checkPath, photo_metric_distortion, normalize_function</span>
-<span class="code-line"># TODO</span>
-<span class="code-line">from configs.args1024 import settings</span>
-<span class="code-line"># 设置随机种子</span>
-<span class="code-line">seed_torch()</span>
-<span class="code-line">os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:40"</span>
-<span class="code-line"># 定义加载网络模型的函数</span>
-<span class="code-line">def loadNet(args: settings):</span>
-<span class="code-line">    net = build_model(args)</span>
-<span class="code-line">    pth_best = os.path.join(args.pth_path, f"{args.pth_name}_best.pth")</span>
-<span class="code-line">    assert os.path.isfile(pth_best)</span>
-<span class="code-line">    loadWeight(path=pth_best, net=net)</span>
-<span class="code-line">    net.eval()</span>
-<span class="code-line">    return net</span>
-<span class="code-line"># 自定义数据集类，用于处理HDF5格式的数据</span>
-<span class="code-line">class Views_HDF5(Dataset):</span>
-<span class="code-line">    def __init__(self, HDF5path, training=False):</span>
-<span class="code-line">        super(Views_HDF5, self).__init__()</span>
-<span class="code-line">        if not os.path.exists(HDF5path):</span>
-<span class="code-line">            raise FileNotFoundError(f"HDF5 file not found: {HDF5path}")</span>
-<span class="code-line">        if not h5py.is_hdf5(HDF5path):</span>
-<span class="code-line">            raise ValueError(f"Invalid HDF5 file: {HDF5path}")</span>
-<span class="code-line">        hf = h5py.File(HDF5path)</span>
-<span class="code-line">        self.images = hf["images"]</span>
-<span class="code-line">        self.labels = hf["labels"]</span>
-<span class="code-line">        self.training = training</span>
-<span class="code-line">    def __len__(self):</span>
-<span class="code-line">        return self.labels.shape[0]</span>
-<span class="code-line">    def __getitem__(self, idx):</span>
-<span class="code-line">        img = self.images[idx]</span>
-<span class="code-line">        ann = self.labels[idx]</span>
-<span class="code-line">        if self.training:</span>
-<span class="code-line">            img, ann = self.aug(img, ann)  # 数据增强</span>
-<span class="code-line">        maskTensor = torch.from_numpy(ann).type(torch.LongTensor)</span>
-<span class="code-line">        out = {</span>
-<span class="code-line">            "img": normalize_function(img),</span>
-<span class="code-line">            "mask": maskTensor</span>
-<span class="code-line">        }</span>
-<span class="code-line">        return out</span>
-<span class="code-line">    @staticmethod</span>
-<span class="code-line">    def aug(img, ann):</span>
-<span class="code-line">        def color_distortion(image):</span>
-<span class="code-line">            # 随机改变图像的亮度、对比度和饱和度</span>
-<span class="code-line">            alpha = 1.0 + np.random.uniform(-0.3, 0.3)  # 减小亮度变化范围</span>
-<span class="code-line">            beta = 0.5 + np.random.uniform(-0.3, 0.3)   # 减小对比度变化范围</span>
-<span class="code-line">            saturation_scale = 0.8 + np.random.uniform(0, 0.4)  # 调整饱和度范围</span>
-                
-<span class="code-line">            # 确保图像类型正确</span>
-<span class="code-line">            image = image.astype(np.float32)</span>
-                
-<span class="code-line">            image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)</span>
-<span class="code-line">            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)</span>
-                
-<span class="code-line">            # 调整饱和度，使用更安全的范围</span>
-<span class="code-line">            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)</span>
-                
-<span class="code-line">            # 转换回BGR并确保数值范围正确</span>
-<span class="code-line">            distorted_image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)</span>
-<span class="code-line">            return distorted_image</span>
-<span class="code-line">        def gaussian_noise(image):</span>
-<span class="code-line">            row, col, ch = image.shape</span>
-<span class="code-line">            mean = 0</span>
-<span class="code-line">            var = 0.1</span>
-<span class="code-line">            sigma = var ** 0.5</span>
-<span class="code-line">            gauss = np.random.normal(mean, sigma, (row, col, ch))</span>
-<span class="code-line">            noisy = np.clip(image + gauss * 255, 0, 255).astype(np.uint8)</span>
-<span class="code-line">            return noisy</span>
-<span class="code-line">        def random_cover(image):</span>
-<span class="code-line">            row, col, ch = image.shape</span>
-<span class="code-line">            r = random.randint(8, row // 8)</span>
-<span class="code-line">            c = random.randint(8, col // 8)</span>
-<span class="code-line">            m = np.zeros((r, c, ch))</span>
-<span class="code-line">            sr = random.randint(0, row - r - 1)</span>
-<span class="code-line">            sc = random.randint(0, col - c - 1)</span>
-<span class="code-line">            image[sr:sr + r, sc:sc + c, :] = m</span>
-<span class="code-line">            return image</span>
-<span class="code-line">        if random.random() &lt; 0.5:</span>
-<span class="code-line">            flip_type = random.choice([0, 1])</span>
-<span class="code-line">            img = cv2.flip(img, flip_type)</span>
-<span class="code-line">            ann = cv2.flip(ann, flip_type)</span>
-<span class="code-line">        return img, ann</span>
-<span class="code-line"># 训练函数</span>
-<span class="code-line">def train(task_args):</span>
-<span class="code-line">    size = task_args.size</span>
-<span class="code-line">    # 设置GPU</span>
-<span class="code-line">    print(torch.cuda.device_count())</span>
-<span class="code-line">    assert torch.cuda.device_count() &gt; 0</span>
-<span class="code-line">    device = torch.device("cuda:0")</span>
-<span class="code-line">    d1 = 1</span>
-<span class="code-line">    print(f"==============[{task_args.data}]==============")</span>
-<span class="code-line">    if task_args.data == "FBP":</span>
-<span class="code-line">        pth_root = rf"./weight/FBP_normal_sswinl_upernet{size}_{d1}"</span>
-<span class="code-line">        args = settings(segHead="upernet", downsample=d1, backbone="sswin_l", isContext=False)</span>
-<span class="code-line">    elif task_args.data == "water":</span>
-<span class="code-line">        pth_root = rf"./weight/{task_args.user}/{task_args.taskName}"</span>
-<span class="code-line">        args = settings(segHead=task_args.segHead, data_type="water", downsample=d1, backbone=task_args.backbone, isContext=False)</span>
-<span class="code-line">    elif task_args.data == "building":</span>
-<span class="code-line">        # pth_root = rf"./weight/{task_args.user}/{task_args.taskName}/building_normal_sswinl_upernet_{size}_{d1}"</span>
-<span class="code-line">        pth_root = rf"./weight/{task_args.user}/{task_args.taskName}"</span>
-<span class="code-line">        # args = settings(segHead="upernet", data_type="building", downsample=d1, backbone="sswin_l", isContext=False)</span>
-<span class="code-line">        args = settings(segHead=task_args.segHead, data_type="building", downsample=d1, backbone=task_args.backbone, isContext=False)</span>
-<span class="code-line">    else:</span>
-<span class="code-line">        raise ValueError</span>
-<span class="code-line">    # 加载训练集和验证集</span>
-<span class="code-line">    checkPath(path=pth_root)</span>
-<span class="code-line">    train_data = Views_HDF5(HDF5path=os.path.join(f"./data/platform/{task_args.data}/train",</span>
-<span class="code-line">                                                  "train.h5"),</span>
-<span class="code-line">                            training=True)</span>
-<span class="code-line">    train_loader = DataLoader(train_data,</span>
-<span class="code-line">                              batch_size=task_args.batchsize,</span>
-<span class="code-line">                              num_workers=0,</span>
-<span class="code-line">                              shuffle=True,</span>
-<span class="code-line">                              drop_last=True)</span>
-<span class="code-line">    val_data = Views_HDF5(HDF5path=os.path.join(f"./data/platform/{task_args.data}/val",</span>
-<span class="code-line">                                                "val.h5"))</span>
-<span class="code-line">    val_loader = DataLoader(val_data,</span>
-<span class="code-line">                            batch_size=1,</span>
-<span class="code-line">                            shuffle=True,</span>
-<span class="code-line">                            drop_last=True)</span>
-<span class="code-line">    # 模型加载</span>
-<span class="code-line">    net1 = build_model(args=args)</span>
-<span class="code-line">    path = os.path.join(pth_root, "best.pth")</span>
-<span class="code-line">    if os.path.isfile(path):</span>
-<span class="code-line">        print(f"Loading net from : {path}")</span>
-<span class="code-line">        check = torch.load(path)</span>
-<span class="code-line">        net1.load_state_dict(check)</span>
-<span class="code-line">    net1.to(device)</span>
-<span class="code-line">    # 优化器</span>
-<span class="code-line">    optimizer, scheduler = build_optimizer(net=net1, args=args)</span>
-<span class="code-line">    evaluator, earlystopping = build_evaluator(args)</span>
-<span class="code-line">    earlystopping.criterion = 0</span>
-<span class="code-line">    # 创建损失函数</span>
-<span class="code-line">    criterion = build_loss(args)</span>
-<span class="code-line">    # 训练过程</span>
-<span class="code-line">    max_epochs = task_args.epoch</span>
-<span class="code-line">    print(f"max epochs:{max_epochs}")</span>
-<span class="code-line">    torch.save(net1.state_dict(), os.path.join(pth_root, f"0.pth"))</span>
-<span class="code-line">    for epoch in range(1, max_epochs + 1):</span>
-<span class="code-line">        print(f"##########################[{epoch}]##########################")</span>
-<span class="code-line">        print(f"Training [{epoch}]:")</span>
-<span class="code-line">        # training</span>
-<span class="code-line">        net1.train()</span>
-<span class="code-line">        print("learn rate = {:.9f}".format(optimizer.param_groups[0]['lr']))</span>
-<span class="code-line">        print("learn rate = {:.9f}".format(optimizer.param_groups[-1]['lr']))</span>
-<span class="code-line">        bar_train = tqdm(train_loader, desc=f'Train::', position=0, leave=True, mininterval=60)</span>
-<span class="code-line">        epoch_loss = 0.0  # 累计总损失</span>
-<span class="code-line">        total_batches = 0</span>
-<span class="code-line">        # 获取图像和标签，进行训练</span>
-<span class="code-line">        for idx, batch in enumerate(bar_train):</span>
-<span class="code-line">            torch.cuda.empty_cache()</span>
-<span class="code-line">            img1 = batch["img"].to(device)</span>
-<span class="code-line">            mask = batch["mask"].to(device)</span>
-<span class="code-line">            torch.cuda.empty_cache()</span>
-<span class="code-line">            out = net1(img1)</span>
-<span class="code-line">            loss = criterion(out, mask)</span>
-<span class="code-line">            net1.zero_grad()</span>
-<span class="code-line">            (loss["loss_tot"]).backward()</span>
-<span class="code-line">            optimizer.step()</span>
-<span class="code-line">            epoch_loss += loss["loss_tot"].item()</span>
-<span class="code-line">            total_batches += 1</span>
-<span class="code-line">            # 每2两个batch 更新进度条和统计信息</span>
-<span class="code-line">            if idx % 2 == 0:</span>
-<span class="code-line">                postfix_args = {k: "{:.5f}".format(v.item()) for k, v in loss.items() \</span>
-<span class="code-line">                                if k in ("loss_tot", "loss_ce", "loss_mask", "loss_dice")}</span>
-<span class="code-line">                bar_train.set_postfix(**postfix_args)</span>
-<span class="code-line">                bar_train.update()</span>
-<span class="code-line">        avg_epoch_loss = epoch_loss / total_batches</span>
-<span class="code-line">        # 保存当前的权重</span>
-<span class="code-line">        torch.save(net1.state_dict(), os.path.join(pth_root, f"{epoch}.pth"))</span>
-<span class="code-line">        print(f"{epoch}.pth was saved to {pth_root}")</span>
-<span class="code-line">        if checkFile(path=os.path.join(pth_root, f"{epoch - 1}.pth")):</span>
-<span class="code-line">            os.remove(os.path.join(pth_root, f"{epoch - 1}.pth"))</span>
-<span class="code-line">        # 验证阶段</span>
-<span class="code-line">        net1.eval()</span>
-<span class="code-line">        print(f"Validation [{epoch}]:")</span>
-<span class="code-line">        torch.cuda.empty_cache()</span>
-<span class="code-line">        bar_val = tqdm(val_loader, desc=f'Val::', position=0, leave=True, mininterval=60)</span>
-<span class="code-line">        evaluator.reset()</span>
-<span class="code-line">        with torch.no_grad():</span>
-<span class="code-line">            for idx, batch in enumerate(bar_val):</span>
-<span class="code-line">                img1 = batch["img"].to(device)</span>
-<span class="code-line">                outputs = net1(img1)</span>
-<span class="code-line">                gt = batch["mask"].to(device)</span>
-<span class="code-line">                # pred = outputs[:, 1:, :, :]  # TODO FBP</span>
-<span class="code-line">                pred = outputs</span>
-<span class="code-line">                pre = np.argmax(pred.cpu().numpy(), axis=1)[0]</span>
-<span class="code-line">                gt = gt.squeeze(0).cpu().numpy()</span>
-<span class="code-line">                evaluator.add_batch(gt, pre)</span>
-<span class="code-line">                if idx % 2 == 0:</span>
-<span class="code-line">                    postfix_args1 = {"id": f"{idx}"}</span>
-<span class="code-line">                    bar_val.set_postfix(**postfix_args1)</span>
-<span class="code-line">                    bar_val.update()</span>
-<span class="code-line">        MIoU = evaluator.Mean_Intersection_over_Union()</span>
-<span class="code-line">        print(f"Epoch {epoch} - MIoU = {MIoU:.4f} - loss = {avg_epoch_loss:.4f}")</span>
-<span class="code-line">        #print(f"MIoU = {MIoU}")</span>
-<span class="code-line">        if earlystopping.CheckStopping(new_criterion=MIoU):</span>
-<span class="code-line">            torch.save(net1.state_dict(), os.path.join(pth_root, "best.pth"))</span>
-<span class="code-line">            print("BETTER MODEL SAVED")</span>
-<span class="code-line">        scheduler.step(earlystopping.criterion)</span>
-<span class="code-line">        print(f"best_MIoU = {earlystopping.criterion}")</span>
-<span class="code-line">        if earlystopping.EarlyStopping:</span>
-<span class="code-line">            print("EarlyStooping")</span>
-<span class="code-line">            return</span>
-<span class="code-line">if __name__ == "__main__":</span>
-<span class="code-line">    import argparse</span>
-<span class="code-line">    parser = argparse.ArgumentParser('Set PFNetPlus Train', add_help=False)</span>
-<span class="code-line">    parser.add_argument('--data', type=str, default="water")</span>
-<span class="code-line">    parser.add_argument('--user', type=str)</span>
-<span class="code-line">    parser.add_argument('--dataset', type=str)</span>
-<span class="code-line">    parser.add_argument('--size', type=int)</span>
-<span class="code-line">    parser.add_argument('--batchsize', type=int)</span>
-<span class="code-line">    parser.add_argument('--backbone', type=str)</span>
-<span class="code-line">    parser.add_argument('--segHead', type=str)</span>
-<span class="code-line">    # parser.add_argument('--optimizer', type=str)</span>
-<span class="code-line">    # parser.add_argument('--loss', type=str)</span>
-<span class="code-line">    parser.add_argument('--epoch', type=int)</span>
-<span class="code-line">    parser.add_argument('--taskName', type=str)</span>
-<span class="code-line">    task_args = parser.parse_args()</span>
-<span class="code-line">    print(f"==============[{task_args.data}]==============")</span>
-<span class="code-line">    train(task_args)</span>
-</code></pre>
+    <div id="container"></div>
+    
+    <!-- 加载提示 -->
+    <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <div>正在加载3D场景...</div>
+    </div>
+    
+    <!-- 错误提示 -->
+    <div id="error" class="error" style="display: none;">
+        <div>加载失败，请检查网络连接</div>
+        <button class="control-btn" onclick="location.reload()" style="margin-top: 10px;">重新加载</button>
+    </div>
+    
+    <!-- 控制面板 -->
+    <div class="controls">
+        <button class="control-btn" id="playBtn" onclick="toggleFlight()">开始飞行</button>
+        <button class="control-btn" onclick="resetView()">重置视角</button>
+        <button class="control-btn" onclick="toggleView()">切换视角</button>
+        <button class="control-btn" onclick="toggleSpeed()">调整速度</button>
+    </div>
+    
+    <!-- 信息面板 -->
+    <div class="info-panel">
+        <div class="info-item">
+            <span class="info-label">飞行状态:</span>
+            <span class="info-value" id="flightStatus">准备中</span>
         </div>
-        <button id="checkButton" class="check-button">大模型辅助代码修改</button>
-        <button id="applyButton" class="apply-button">应用修改</button>
-        <div id="diffContainer" class="diff-container">
-            <div id="diffView"></div>
+        <div class="info-item">
+            <span class="info-label">当前航点:</span>
+            <span class="info-value" id="currentWaypoint">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">飞行高度:</span>
+            <span class="info-value" id="altitude">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">飞行速度:</span>
+            <span class="info-value" id="speed">-</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">剩余时间:</span>
+            <span class="info-value" id="remainingTime">-</span>
         </div>
     </div>
-
+    
+    <!-- 腾讯地图API -->
+    <script src="https://map.qq.com/api/gljs?v=1.exp&key=D7BBZ-XDF3B-GULUK-NKGB2-2LFJQ-HDFTS&libraries=model"></script>
+    
     <script>
+        // 全局变量
+        let map = null;
+        let Tileset3D = null;
+        let flightPath = null;
+        let waypointMarkers = [];
+        let droneMarker = null;
+        let isPlaying = false;
+        let currentView = 'god'; // god, follow, fpv
+        let speedLevel = 1; // 1: 正常, 2: 快速, 0.5: 慢速
+        let flightTimer = null;
+        let currentWaypointIndex = 0;
+        let routeData = null;
         
+        // 初始化
         document.addEventListener('DOMContentLoaded', function() {
-            const codeAreaContainer = document.getElementById('codeAreaContainer');
-            const checkButton = document.getElementById('checkButton');
-            const applyButton = document.getElementById('applyButton');
-            const diffContainer = document.getElementById('diffContainer');
-            const diffView = document.getElementById('diffView');
-            const codeLines = document.querySelectorAll('.code-line');
-
-            const correctedCode = `import os
-import cv2
-import h5py
-import random
-import numpy as np
-from tqdm import tqdm
-
-class Views_HDF5(Dataset):
-    def __init__(self, HDF5path, training=False):
-        pass
-
-    @staticmethod
-    def aug(img, ann):
-        def color_distortion(image):
-            # 随机改变图像的亮度、对比度和饱和度
-            alpha = 1.0 + np.random.uniform(-0.3, 0.3)  # 减小亮度变化范围
-            beta = 0.5 + np.random.uniform(-0.3, 0.3)   # 减小对比度变化范围
-            saturation_scale = 0.8 + np.random.uniform(0, 0.4)  # 调整饱和度范围
+            // 获取路线数据
+            const urlParams = new URLSearchParams(window.location.search);
+            const routeDataStr = urlParams.get('routeData');
             
-            # 确保图像类型正确
-            image = image.astype(np.float32)
-            
-            image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
-            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
-            
-            # 调整饱和度，使用更安全的范围
-            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)
-            
-            # 转换回BGR并确保数值范围正确
-            distorted_image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
-            return distorted_image
-
-        def gaussian_noise(image):
-            pass`;
-            hljs.highlightAll();
-            async function checkCodeWithAnimation() {
-                // 创建一个临时的代码容器用于动画
-                const tempContainer = document.createElement('div');
-                tempContainer.style.cssText = codeAreaContainer.style.cssText;
-                tempContainer.className = codeAreaContainer.className;
-                
-                // 复制代码内容，但不包含highlight.js的格式化
-                const plainCode = Array.from(codeLines).map(line => 
-                    `<span class="code-line">${line.textContent}</span>`
-                ).join('\n');
-                
-                tempContainer.innerHTML = `<pre><code class="language-python">${plainCode}</code></pre>`;
-                
-                // 暂时隐藏原始代码区域，显示临时容器
-                codeAreaContainer.style.display = 'none';
-                codeAreaContainer.parentNode.insertBefore(tempContainer, codeAreaContainer);
-                
-                // 执行动画检查
-                const tempCodeLines = tempContainer.querySelectorAll('.code-line');
-                const delay = 50;
-                let lastScrollTime = 0;
-                
-                for (let line of tempCodeLines) {
-                    const now = Date.now();
-                    line.classList.add('checking');
-                    
-                    if (now - lastScrollTime > delay) {
-                        await new Promise(resolve => {
-                            requestAnimationFrame(() => {
-                                const containerRect = tempContainer.getBoundingClientRect();
-                                const lineRect = line.getBoundingClientRect();
-                                const relativeTop = lineRect.top - containerRect.top;
-                                tempContainer.scrollTop = 
-                                    tempContainer.scrollTop + relativeTop - containerRect.height/2;
-                                lastScrollTime = now;
-                                resolve();
-                            });
-                        });
-                    }
-
-                    await new Promise(resolve => setTimeout(resolve, delay));
-                    line.classList.remove('checking');
+            if (routeDataStr) {
+                try {
+                    routeData = JSON.parse(decodeURIComponent(routeDataStr));
+                    console.log('Route data loaded:', routeData);
+                } catch (e) {
+                    console.error('Failed to parse route data:', e);
+                    showError('路线数据解析失败');
+                    return;
                 }
-                
-                // 移除临时容器
-                tempContainer.remove();
-                
-                // 显示diff
-                diffContainer.style.display = 'block';
-                applyButton.style.display = 'inline-block';
-                checkButton.style.display = 'none';
-                
-                // 显示diff结果
-                const currentCode = document.querySelector('.code-area code').textContent;
-                const diffStr = `
---- a/original.py
-+++ b/suggested.py
-@@ -1,14 +1,17 @@
- def color_distortion(image):
-     # 随机改变图像的亮度、对比度和饱和度
--    alpha = 1.0 + np.random.uniform(-0.5, 0.5)  # 亮度
--    beta = 0.5 + np.random.uniform(-0.5, 0.5)   # 对比度
--    saturation_scale = 0.5 + np.random.uniform(0, 1)  # 饱和度
-+    alpha = 1.0 + np.random.uniform(-0.3, 0.3)  # 减小亮度变化范围
-+    beta = 0.5 + np.random.uniform(-0.3, 0.3)   # 减小对比度变化范围
-+    saturation_scale = 0.8 + np.random.uniform(0, 0.4)  # 调整饱和度范围
-+    
-+    # 确保图像类型正确
-+    image = image.astype(np.float32)
-     
-     image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)
--    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
-     
-     hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)
-     
--    distorted_image = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
-+    # 转换回BGR并确保数值范围正确
-+    distorted_image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)
-     return distorted_image`;
-                const diffJson = Diff2Html.parse(diffStr);
-                const diffHtml = Diff2Html.html(diffJson, {
-                    drawFileList: false,
-                    matching: 'lines',
-                    outputFormat: 'side-by-side'
-                });
-                diffView.innerHTML = diffHtml;
+            } else {
+                 // 使用默认测试数据（3DTiles模型覆盖区域）
+                 routeData = {
+                     waypoints: [
+                         { latitude: 35.09260704247744, longitude: 111.06575713601103, altitude: 100, name: '起点' },
+                         { latitude: 35.093, longitude: 111.066, altitude: 120, name: '航点1' },
+                         { latitude: 35.094, longitude: 111.067, altitude: 110, name: '航点2' },
+                         { latitude: 35.095, longitude: 111.068, altitude: 130, name: '终点' }
+                     ],
+                     routeName: '测试飞行路线'
+                 };
             }
-
-            applyButton.addEventListener('click', () => {
-                // 隐藏diff和应用按钮
-                diffContainer.style.display = 'none';
-                applyButton.style.display = 'none';
-
-                // 保存原始代码内容
-                const originalCode = document.querySelector('.code-area code').innerHTML;
+            
+            // 初始化地图
+            initMap();
+        });
+        
+         // 初始化地图
+         function initMap() {
+             try {
+                 // 设置地图中心点（3DTiles模型覆盖区域）
+                 let center = new TMap.LatLng(35.09260704247744, 111.06575713601103);
+                 
+                 // 如果有航点数据，使用第一个航点作为中心
+                 if (routeData.waypoints && routeData.waypoints.length > 0) {
+                     const firstWaypoint = routeData.waypoints[0];
+                     center = new TMap.LatLng(firstWaypoint.latitude, firstWaypoint.longitude);
+                 }
                 
-                // 更新并显示代码区域
-                const codeElement = codeAreaContainer.querySelector('code');
-                
-                // 创建临时容器来保持完整的代码结构
-                const tempElement = document.createElement('div');
-                tempElement.innerHTML = originalCode;
-                
-                // 查找并更新color_distortion函数的内容
-                const codeLines = tempElement.querySelectorAll('.code-line');
-                let inColorDistortion = false;
-                let colorDistortionEnd = false;
-                
-                for (let i = 0; i < codeLines.length; i++) {
-                    const line = codeLines[i];
-                    if (line.textContent.includes('def color_distortion(image):')) {
-                        inColorDistortion = true;
-                        continue;
+                // 创建地图
+                map = new TMap.Map("container", {
+                    rotation: 0,
+                    pitch: 45, // 3D视角
+                    zoom: 16,
+                    center: center,
+                    baseMap: {
+                        type: "vector",
+                        features: ["base", "building3d"]
                     }
-                    
-                    if (inColorDistortion && !colorDistortionEnd) {
-                        if (line.textContent.includes('def gaussian_noise(image):')) {
-                            colorDistortionEnd = true;
-                            continue;
-                        }
-                        
-                        // 更新color_distortion函数的内容
-                        if (line.textContent.includes('alpha =')) {
-                            line.textContent = '            alpha = 1.0 + np.random.uniform(-0.3, 0.3)  # 减小亮度变化范围';
-                        } else if (line.textContent.includes('beta =')) {
-                            line.textContent = '            beta = 0.5 + np.random.uniform(-0.3, 0.3)   # 减小对比度变化范围';
-                        } else if (line.textContent.includes('saturation_scale =')) {
-                            line.textContent = '            saturation_scale = 0.8 + np.random.uniform(0, 0.4)  # 调整饱和度范围';
-                        }
-                        // 添加新的类型转换和注释
-                        else if (line.textContent.includes('image = cv2.convertScaleAbs')) {
-                            const newLines = [
-                                '            # 确保图像类型正确',
-                                '            image = image.astype(np.float32)',
-                                '',
-                                '            image = cv2.convertScaleAbs(image, alpha=alpha, beta=beta)'
-                            ];
-                            line.textContent = newLines.join('\n');
-                        }
-                        // 更新HSV转换和处理部分
-                        else if (line.textContent.includes('hsv = cv2.cvtColor')) {
-                            line.textContent = '            hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)';
-                        }
-                        else if (line.textContent.includes('hsv[:, :, 1] = np.clip')) {
-                            line.textContent = '            # 调整饱和度，使用更安全的范围\n' +
-                                             '            hsv[:, :, 1] = np.clip(hsv[:, :, 1] * saturation_scale, 0, 255)';
-                        }
-                        else if (line.textContent.includes('distorted_image = cv2.cvtColor')) {
-                            line.textContent = '            # 转换回BGR并确保数值范围正确\n' +
-                                             '            distorted_image = cv2.cvtColor(hsv.astype(np.uint8), cv2.COLOR_HSV2BGR)';
-                        }
-                    }
+                });
+                
+                // 地图加载完成后添加3D建筑和路径
+                map.on('tilesloaded', function() {
+                    add3DBuildings();
+                    addFlightPath();
+                    hideLoading();
+                });
+                
+                // 地图加载失败处理
+                map.on('error', function(e) {
+                    console.error('Map load error:', e);
+                    showError('地图加载失败，请检查网络连接');
+                });
+                
+            } catch (error) {
+                console.error('Failed to initialize map:', error);
+                showError('地图初始化失败：' + error.message);
+            }
+        }
+        
+        // 添加3D建筑
+        function add3DBuildings() {
+            try {
+                Tileset3D = new TMap.model.Tileset3D({
+                    id: 'Tileset3DLayer',
+                    url: 'https://mapapi.qq.com/web/lbs/visualizationApi/demo/data/3dTilesGCJ02/tileset.json',
+                    map: map,
+                    offset: [0, 0, 0]
+                });
+                console.log('3D buildings added');
+            } catch (error) {
+                console.error('Failed to add 3D buildings:', error);
+            }
+        }
+        
+        // 添加飞行路径
+        function addFlightPath() {
+            if (!routeData.waypoints || routeData.waypoints.length < 2) {
+                console.log('Not enough waypoints for flight path');
+                return;
+            }
+            
+            try {
+                // 创建路径点
+                const pathPoints = routeData.waypoints.map(wp => 
+                    new TMap.LatLng(wp.latitude, wp.longitude)
+                );
+                
+                // 创建路径线
+                flightPath = new TMap.MultiPolyline({
+                    id: 'flightPath',
+                    map: map,
+                    styles: {
+                        'path': new TMap.PolylineStyle({
+                            color: '#FFD700',
+                            width: 4
+                        })
+                    },
+                    geometries: [{
+                        id: 'path',
+                        styleId: 'path',
+                        paths: pathPoints
+                    }]
+                });
+                
+                // 添加航点标记
+                addWaypointMarkers();
+                
+                // 添加无人机标记
+                addDroneMarker();
+                
+                console.log('Flight path added with', routeData.waypoints.length, 'waypoints');
+                
+            } catch (error) {
+                console.error('Failed to add flight path:', error);
+            }
+        }
+        
+        // 添加航点标记
+        function addWaypointMarkers() {
+            routeData.waypoints.forEach((wp, index) => {
+                const marker = new TMap.MultiMarker({
+                    id: `waypoint_${index}`,
+                    map: map,
+                    styles: {
+                        'waypoint': new TMap.MarkerStyle({
+                            width: 30,
+                            height: 30,
+                            anchor: { x: 15, y: 15 },
+                            src: createWaypointIcon(index + 1)
+                        })
+                    },
+                    geometries: [{
+                        id: `wp_${index}`,
+                        styleId: 'waypoint',
+                        position: new TMap.LatLng(wp.latitude, wp.longitude)
+                    }]
+                });
+                
+                waypointMarkers.push(marker);
+            });
+        }
+        
+        // 创建航点图标
+        function createWaypointIcon(number) {
+            const svg = `
+                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="15" cy="15" r="12" fill="#FF3B30" stroke="white" stroke-width="2"/>
+                    <text x="15" y="20" font-family="Arial" font-size="12" fill="white" text-anchor="middle">${number}</text>
+                </svg>
+            `;
+            return 'data:image/svg+xml;base64,' + btoa(svg);
+        }
+        
+        // 添加无人机标记
+        function addDroneMarker() {
+            if (routeData.waypoints.length === 0) return;
+            
+            const firstWaypoint = routeData.waypoints[0];
+            droneMarker = new TMap.MultiMarker({
+                id: 'drone',
+                map: map,
+                styles: {
+                    'drone': new TMap.MarkerStyle({
+                        width: 25,
+                        height: 25,
+                        anchor: { x: 12.5, y: 12.5 },
+                        src: createDroneIcon()
+                    })
+                },
+                geometries: [{
+                    id: 'drone_marker',
+                    styleId: 'drone',
+                    position: new TMap.LatLng(firstWaypoint.latitude, firstWaypoint.longitude)
+                }]
+            });
+        }
+        
+        // 创建无人机图标
+        function createDroneIcon() {
+            const svg = `
+                <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12.5" cy="12.5" r="10" fill="#007AFF" stroke="white" stroke-width="2"/>
+                    <path d="M8 8L17 17M17 8L8 17" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            `;
+            return 'data:image/svg+xml;base64,' + btoa(svg);
+        }
+        
+        // 切换飞行状态
+        function toggleFlight() {
+            if (isPlaying) {
+                pauseFlight();
+            } else {
+                startFlight();
+            }
+        }
+        
+        // 开始飞行
+        function startFlight() {
+            if (!routeData.waypoints || routeData.waypoints.length < 2) {
+                alert('航点数量不足，无法开始飞行');
+                return;
+            }
+            
+            isPlaying = true;
+            currentWaypointIndex = 0;
+            
+            document.getElementById('playBtn').textContent = '暂停飞行';
+            document.getElementById('playBtn').classList.add('active');
+            document.getElementById('flightStatus').textContent = '飞行中';
+            
+            // 开始飞行动画
+            startFlightAnimation();
+            
+            console.log('Flight started');
+        }
+        
+        // 暂停飞行
+        function pauseFlight() {
+            isPlaying = false;
+            
+            document.getElementById('playBtn').textContent = '开始飞行';
+            document.getElementById('playBtn').classList.remove('active');
+            document.getElementById('flightStatus').textContent = '已暂停';
+            
+            if (flightTimer) {
+                clearInterval(flightTimer);
+                flightTimer = null;
+            }
+            
+            console.log('Flight paused');
+        }
+        
+        // 开始飞行动画
+        function startFlightAnimation() {
+            const totalWaypoints = routeData.waypoints.length;
+            const flightDuration = totalWaypoints * 3 * 1000; // 每个航点3秒
+            const interval = 100; // 更新间隔100ms
+            
+            let progress = 0;
+            
+            flightTimer = setInterval(() => {
+                if (!isPlaying) return;
+                
+                progress += interval;
+                const totalProgress = progress / flightDuration;
+                
+                if (totalProgress >= 1) {
+                    // 飞行完成
+                    completeFlight();
+                    return;
                 }
                 
-                // 更新代码内容
-                codeElement.innerHTML = tempElement.innerHTML;
+                // 计算当前航点索引
+                const waypointProgress = totalProgress * (totalWaypoints - 1);
+                const currentIndex = Math.floor(waypointProgress);
+                const nextIndex = Math.min(currentIndex + 1, totalWaypoints - 1);
+                const segmentProgress = waypointProgress - currentIndex;
                 
-                // 重新应用语法高亮
-                codeAreaContainer.style.display = 'block';
-                checkButton.style.display = 'inline-block';
-                hljs.highlightElement(codeElement);
-            });
-
-            checkButton.addEventListener('click', checkCodeWithAnimation);
+                // 更新无人机位置
+                updateDronePosition(currentIndex, nextIndex, segmentProgress);
+                
+                // 更新信息面板
+                updateFlightInfo(currentIndex, segmentProgress);
+                
+            }, interval);
+        }
+        
+        // 更新无人机位置
+        function updateDronePosition(currentIndex, nextIndex, segmentProgress) {
+            if (!droneMarker || !routeData.waypoints) return;
+            
+            const currentWp = routeData.waypoints[currentIndex];
+            const nextWp = routeData.waypoints[nextIndex];
+            
+            // 插值计算当前位置
+            const lat = currentWp.latitude + (nextWp.latitude - currentWp.latitude) * segmentProgress;
+            const lng = currentWp.longitude + (nextWp.longitude - currentWp.longitude) * segmentProgress;
+            const alt = currentWp.altitude + (nextWp.altitude - currentWp.altitude) * segmentProgress;
+            
+            // 更新无人机位置
+            droneMarker.setGeometries([{
+                id: 'drone_marker',
+                styleId: 'drone',
+                position: new TMap.LatLng(lat, lng)
+            }]);
+            
+            // 更新摄像机视角
+            if (currentView === 'follow') {
+                map.setCenter(new TMap.LatLng(lat, lng));
+            }
+        }
+        
+        // 更新飞行信息
+        function updateFlightInfo(currentIndex, segmentProgress) {
+            const currentWp = routeData.waypoints[currentIndex];
+            const nextWp = routeData.waypoints[Math.min(currentIndex + 1, routeData.waypoints.length - 1)];
+            
+            // 计算当前高度
+            const altitude = currentWp.altitude + (nextWp.altitude - currentWp.altitude) * segmentProgress;
+            
+            // 计算飞行速度
+            const speed = 15 * speedLevel; // 基础速度15m/s
+            
+            // 计算剩余时间
+            const remainingWaypoints = routeData.waypoints.length - currentIndex - 1;
+            const remainingTime = remainingWaypoints * 3 / speedLevel; // 每个航点3秒
+            
+            // 更新UI
+            document.getElementById('currentWaypoint').textContent = `${currentIndex + 1}/${routeData.waypoints.length}`;
+            document.getElementById('altitude').textContent = `${Math.round(altitude)}m`;
+            document.getElementById('speed').textContent = `${Math.round(speed)}m/s`;
+            document.getElementById('remainingTime').textContent = `${Math.round(remainingTime)}s`;
+        }
+        
+        // 完成飞行
+        function completeFlight() {
+            isPlaying = false;
+            
+            document.getElementById('playBtn').textContent = '重新飞行';
+            document.getElementById('playBtn').classList.remove('active');
+            document.getElementById('flightStatus').textContent = '飞行完成';
+            
+            if (flightTimer) {
+                clearInterval(flightTimer);
+                flightTimer = null;
+            }
+            
+            // 显示完成提示
+            setTimeout(() => {
+                alert('飞行预览完成！');
+            }, 500);
+            
+            console.log('Flight completed');
+        }
+        
+        // 重置视角
+        function resetView() {
+            if (!map) return;
+            
+             const center = routeData.waypoints && routeData.waypoints.length > 0 
+                 ? new TMap.LatLng(routeData.waypoints[0].latitude, routeData.waypoints[0].longitude)
+                 : new TMap.LatLng(35.09260704247744, 111.06575713601103);
+            
+            map.setCenter(center);
+            map.setZoom(16);
+            map.setPitch(45);
+            map.setRotation(0);
+            
+            console.log('View reset');
+        }
+        
+        // 切换视角
+        function toggleView() {
+            if (!map) return;
+            
+            switch (currentView) {
+                case 'god':
+                    currentView = 'follow';
+                    map.setPitch(30);
+                    console.log('Switched to follow view');
+                    break;
+                case 'follow':
+                    currentView = 'fpv';
+                    map.setPitch(0);
+                    console.log('Switched to FPV view');
+                    break;
+                case 'fpv':
+                    currentView = 'god';
+                    map.setPitch(45);
+                    console.log('Switched to god view');
+                    break;
+            }
+        }
+        
+        // 调整速度
+        function toggleSpeed() {
+            switch (speedLevel) {
+                case 1:
+                    speedLevel = 2;
+                    console.log('Speed: Fast (2x)');
+                    break;
+                case 2:
+                    speedLevel = 0.5;
+                    console.log('Speed: Slow (0.5x)');
+                    break;
+                case 0.5:
+                    speedLevel = 1;
+                    console.log('Speed: Normal (1x)');
+                    break;
+            }
+        }
+        
+        // 显示错误
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error').querySelector('div').textContent = message;
+        }
+        
+        // 隐藏加载
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        // 页面卸载时清理
+        window.addEventListener('beforeunload', function() {
+            if (flightTimer) {
+                clearInterval(flightTimer);
+            }
         });
     </script>
 </body>
 </html>
+
