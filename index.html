@@ -120,6 +120,168 @@
             text-align: center;
             max-width: 300px;
         }
+        
+        .waypoints-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+            max-height: 400px;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .panel-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #fff;
+        }
+        
+        .waypoint-count {
+            font-size: 12px;
+            color: #ccc;
+        }
+        
+        .waypoints-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .waypoint-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .waypoint-item:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .waypoint-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .waypoint-number {
+            width: 30px;
+            height: 30px;
+            background: #007AFF;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        
+        .waypoint-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .waypoint-name {
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        
+        .waypoint-coords {
+            font-size: 12px;
+            color: #ccc;
+            display: block;
+            margin-bottom: 2px;
+        }
+        
+        .waypoint-altitude {
+            font-size: 12px;
+            color: #34C759;
+            font-weight: bold;
+        }
+        
+        .waypoint-delete {
+            color: #FF3B30;
+            font-size: 12px;
+            padding: 5px 10px;
+            border: 1px solid #FF3B30;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+        
+        .waypoint-delete:hover {
+            background: #FF3B30;
+            color: white;
+        }
+        
+        .route-info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 250px;
+            z-index: 1000;
+        }
+        
+        .route-info-content {
+            margin-top: 10px;
+        }
+        
+        .route-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .route-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #ccc;
+        }
+        
+        .stat-value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #34C759;
+        }
     </style>
 </head>
 <body>
@@ -139,10 +301,20 @@
     
     <!-- 控制面板 -->
     <div class="controls">
-        <button class="control-btn" id="playBtn" onclick="toggleFlight()">开始飞行</button>
-        <button class="control-btn" onclick="resetView()">重置视角</button>
-        <button class="control-btn" onclick="toggleView()">切换视角</button>
-        <button class="control-btn" onclick="toggleSpeed()">调整速度</button>
+        <!-- 编辑模式控制 -->
+        <div id="editControls" style="display: none;">
+            <button class="control-btn" onclick="addWaypoint()">添加航点</button>
+            <button class="control-btn" onclick="clearWaypoints()">清空航点</button>
+            <button class="control-btn" onclick="finishEditing()" style="background: #34C759;">完成编辑</button>
+        </div>
+        
+        <!-- 预览模式控制 -->
+        <div id="previewControls">
+            <button class="control-btn" id="playBtn" onclick="toggleFlight()">开始飞行</button>
+            <button class="control-btn" onclick="resetView()">重置视角</button>
+            <button class="control-btn" onclick="toggleView()">切换视角</button>
+            <button class="control-btn" onclick="toggleSpeed()">调整速度</button>
+        </div>
     </div>
     
     <!-- 信息面板 -->
@@ -169,6 +341,41 @@
         </div>
     </div>
     
+    <!-- 路线信息面板 -->
+    <div class="route-info-panel" id="routeInfoPanel">
+        <div class="panel-header">
+            <h3>路线信息</h3>
+        </div>
+        <div class="route-info-content">
+            <div class="route-name" id="routeName">未命名路线</div>
+            <div class="route-stats">
+                <div class="stat-item">
+                    <span class="stat-label">航点数量:</span>
+                    <span class="stat-value" id="routeWaypointCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">总距离:</span>
+                    <span class="stat-value" id="routeDistance">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">预计时长:</span>
+                    <span class="stat-value" id="routeDuration">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 航点列表面板 -->
+    <div class="waypoints-panel" id="waypointsPanel">
+        <div class="panel-header">
+            <h3>航点列表</h3>
+            <span class="waypoint-count" id="waypointCount">共0个航点</span>
+        </div>
+        <div class="waypoints-list" id="waypointsList">
+            <!-- 航点列表将在这里动态生成 -->
+        </div>
+    </div>
+    
     <!-- 腾讯地图API -->
     <script src="https://map.qq.com/api/gljs?v=1.exp&key=D7BBZ-XDF3B-GULUK-NKGB2-2LFJQ-HDFTS&libraries=model"></script>
     
@@ -186,15 +393,54 @@
         let currentWaypointIndex = 0;
         let routeData = null;
         
+        // 编辑模式相关变量
+        let editMode = false;
+        let waypoints = [];
+        let editingWaypoint = null;
+        
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // 获取路线数据
+            // 获取URL参数
             const urlParams = new URLSearchParams(window.location.search);
             const routeDataStr = urlParams.get('routeData');
+            const editModeParam = urlParams.get('editMode');
             
-            if (routeDataStr) {
+            // 检查是否为编辑模式
+            editMode = editModeParam === 'true';
+            console.log('HTML: editModeParam =', editModeParam);
+            console.log('HTML: editMode =', editMode);
+            
+            if (editMode) {
+                // 编辑模式：检查是否有现有路线数据
+                if (routeDataStr) {
+                    // 编辑现有路线
+                    try {
+                        routeData = JSON.parse(decodeURIComponent(routeDataStr));
+                        waypoints = routeData.waypoints || [];
+                        console.log('Edit existing route:', routeData);
+                    } catch (e) {
+                        console.error('Failed to parse existing route data:', e);
+                        // 如果解析失败，创建新路线
+                        routeData = {
+                            waypoints: [],
+                            routeName: '自定义3D路线'
+                        };
+                        waypoints = [];
+                    }
+                } else {
+                    // 创建新路线
+                    routeData = {
+                        waypoints: [],
+                        routeName: '自定义3D路线'
+                    };
+                    waypoints = [];
+                }
+                updateEditControls();
+            } else if (routeDataStr) {
+                // 预览模式：加载现有路线数据
                 try {
                     routeData = JSON.parse(decodeURIComponent(routeDataStr));
+                    waypoints = routeData.waypoints || [];
                     console.log('Route data loaded:', routeData);
                 } catch (e) {
                     console.error('Failed to parse route data:', e);
@@ -202,16 +448,12 @@
                     return;
                 }
             } else {
-                 // 使用默认测试数据（3DTiles模型覆盖区域）
-                 routeData = {
-                     waypoints: [
-                         { latitude: 35.09260704247744, longitude: 111.06575713601103, altitude: 100, name: '起点' },
-                         { latitude: 35.093, longitude: 111.066, altitude: 120, name: '航点1' },
-                         { latitude: 35.094, longitude: 111.067, altitude: 110, name: '航点2' },
-                         { latitude: 35.095, longitude: 111.068, altitude: 130, name: '终点' }
-                     ],
-                     routeName: '测试飞行路线'
-                 };
+                // 没有路线数据，初始化空路线
+                routeData = {
+                    waypoints: [],
+                    routeName: '未命名路线'
+                };
+                waypoints = [];
             }
             
             // 初始化地图
@@ -245,7 +487,20 @@
                 // 地图加载完成后添加3D建筑和路径
                 map.on('tilesloaded', function() {
                     add3DBuildings();
-                    addFlightPath();
+                    if (editMode) {
+                        // 编辑模式：显示现有航点
+                        addExistingWaypoints();
+                    } else {
+                        // 预览模式：显示飞行路径
+                        addFlightPath();
+                        addWaypointMarkers();
+                    }
+                    // 更新航点列表（两种模式都需要）
+                    updateWaypointsList();
+                    
+                    // 更新路线信息
+                    updateRouteInfo();
+                    
                     hideLoading();
                 });
                 
@@ -613,7 +868,371 @@
                 clearInterval(flightTimer);
             }
         });
+        
+        // ==================== 编辑模式相关函数 ====================
+        
+        // 更新编辑控制面板显示
+        function updateEditControls() {
+            const editControls = document.getElementById('editControls');
+            const previewControls = document.getElementById('previewControls');
+            
+            if (editMode) {
+                editControls.style.display = 'block';
+                previewControls.style.display = 'none';
+            } else {
+                editControls.style.display = 'none';
+                previewControls.style.display = 'block';
+            }
+        }
+        
+        // 添加航点（点击地图）
+        function addWaypoint() {
+            if (!editMode) return;
+            
+            // 添加地图点击事件监听
+            map.on('click', onMapClick);
+            
+            // 显示提示
+            showEditHint('点击地图添加航点');
+        }
+        
+        // 地图点击事件
+        function onMapClick(event) {
+            if (!editMode) return;
+            
+            const latlng = event.latlng;
+            const waypoint = {
+                latitude: latlng.lat,
+                longitude: latlng.lng,
+                altitude: 100 + Math.random() * 50, // 随机高度
+                name: `航点${waypoints.length + 1}`
+            };
+            
+            waypoints.push(waypoint);
+            addWaypointToMap(waypoint);
+            updateFlightPath();
+            updateWaypointsList(); // 更新航点列表
+            
+            // 移除点击事件监听
+            map.off('click', onMapClick);
+            hideEditHint();
+            
+            // 更新路线信息
+            updateRouteInfo();
+            
+            console.log('Added waypoint:', waypoint);
+        }
+        
+        // 在地图上添加航点标记
+        function addWaypointToMap(waypoint) {
+            const marker = new TMap.MultiMarker({
+                map: map,
+                styles: {
+                    'waypoint': new TMap.MarkerStyle({
+                        width: 30,
+                        height: 30,
+                        anchor: { x: 15, y: 15 },
+                        src: createWaypointIcon(waypoints.length)
+                    })
+                },
+                geometries: [{
+                    id: `waypoint_${waypoints.length}`,
+                    styleId: 'waypoint',
+                    position: new TMap.LatLng(waypoint.latitude, waypoint.longitude)
+                }]
+            });
+            
+            waypointMarkers.push(marker);
+        }
+        
+        // 更新飞行路径
+        function updateFlightPath() {
+            if (waypoints.length < 2) return;
+            
+            // 清除现有路径
+            if (flightPath) {
+                flightPath.setMap(null);
+            }
+            
+            // 创建新路径
+            const path = waypoints.map(wp => new TMap.LatLng(wp.latitude, wp.longitude));
+            
+            flightPath = new TMap.MultiPolyline({
+                map: map,
+                styles: {
+                    'flight': new TMap.PolylineStyle({
+                        color: '#FF6B6B',
+                        width: 4,
+                        borderColor: '#FFFFFF',
+                        borderWidth: 2
+                    })
+                },
+                geometries: [{
+                    id: 'flight_path',
+                    styleId: 'flight',
+                    paths: [path]
+                }]
+            });
+        }
+        
+        // 清空所有航点
+        function clearWaypoints() {
+            if (!editMode) return;
+            
+            waypoints = [];
+            
+            // 清除地图上的标记
+            waypointMarkers.forEach(marker => marker.setMap(null));
+            waypointMarkers = [];
+            
+            // 清除飞行路径
+            if (flightPath) {
+                flightPath.setMap(null);
+                flightPath = null;
+            }
+            
+            // 更新航点列表
+            updateWaypointsList();
+            
+            // 更新路线信息
+            updateRouteInfo();
+            
+            console.log('Cleared all waypoints');
+        }
+        
+        // 完成编辑
+        function finishEditing() {
+            if (!editMode) return;
+            
+            if (waypoints.length < 2) {
+                alert('至少需要2个航点才能完成编辑');
+                return;
+            }
+            
+            const routeData = {
+                waypoints: waypoints,
+                routeName: '自定义3D路线',
+                timestamp: Date.now()
+            };
+            
+            // 发送到小程序
+            sendToMiniProgram({
+                action: 'route_edited',
+                data: routeData
+            });
+            
+            console.log('Route editing completed:', routeData);
+        }
+        
+        // 发送消息到小程序
+        function sendToMiniProgram(data) {
+            if (window.wx && window.wx.miniProgram) {
+                window.wx.miniProgram.postMessage({
+                    data: data
+                });
+                console.log('Message sent to MiniProgram:', data);
+            } else {
+                console.warn('MiniProgram API not available');
+            }
+        }
+        
+        // 显示编辑提示
+        function showEditHint(message) {
+            // 创建提示元素
+            let hint = document.getElementById('editHint');
+            if (!hint) {
+                hint = document.createElement('div');
+                hint.id = 'editHint';
+                hint.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 20px 30px;
+                    border-radius: 10px;
+                    font-size: 16px;
+                    z-index: 1000;
+                    pointer-events: none;
+                `;
+                document.body.appendChild(hint);
+            }
+            hint.textContent = message;
+            hint.style.display = 'block';
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                hint.style.display = 'none';
+            }, 3000);
+        }
+        
+        // 隐藏编辑提示
+        function hideEditHint() {
+            const hint = document.getElementById('editHint');
+            if (hint) {
+                hint.style.display = 'none';
+            }
+        }
+
+        // 显示现有航点（编辑模式）
+        function addExistingWaypoints() {
+            if (!editMode || !waypoints || waypoints.length === 0) return;
+            
+            console.log('Adding existing waypoints:', waypoints);
+            
+            // 清除现有标记
+            waypointMarkers.forEach(marker => marker.setMap(null));
+            waypointMarkers = [];
+            
+            // 添加航点标记
+            waypoints.forEach((waypoint, index) => {
+                addWaypointToMap(waypoint);
+            });
+            
+            // 更新飞行路径
+            updateFlightPath();
+            
+            // 更新航点列表
+            updateWaypointsList();
+            
+            // 更新路线信息
+            updateRouteInfo();
+        }
+
+        // 更新航点列表显示
+        function updateWaypointsList() {
+            const waypointsList = document.getElementById('waypointsList');
+            const waypointCount = document.getElementById('waypointCount');
+            
+            if (!waypointsList || !waypointCount) return;
+            
+            // 更新航点数量
+            waypointCount.textContent = `共${waypoints.length}个航点`;
+            
+            // 清空现有列表
+            waypointsList.innerHTML = '';
+            
+            // 生成航点列表
+            waypoints.forEach((waypoint, index) => {
+                const waypointItem = document.createElement('div');
+                waypointItem.className = 'waypoint-item';
+                waypointItem.innerHTML = `
+                    <div class="waypoint-number">${index + 1}</div>
+                    <div class="waypoint-info">
+                        <div class="waypoint-name">${waypoint.name || `航点${index + 1}`}</div>
+                        <div class="waypoint-coords">经度: ${waypoint.longitude.toFixed(6)}</div>
+                        <div class="waypoint-coords">纬度: ${waypoint.latitude.toFixed(6)}</div>
+                        <div class="waypoint-altitude">高度: ${waypoint.altitude}m</div>
+                    </div>
+                    ${editMode ? `<div class="waypoint-delete" onclick="deleteWaypoint(${index})">删除</div>` : ''}
+                `;
+                
+                // 添加点击事件（非编辑模式）
+                if (!editMode) {
+                    waypointItem.addEventListener('click', () => {
+                        focusOnWaypoint(index);
+                    });
+                }
+                
+                waypointsList.appendChild(waypointItem);
+            });
+        }
+
+        // 聚焦到指定航点
+        function focusOnWaypoint(index) {
+            if (index < 0 || index >= waypoints.length) return;
+            
+            const waypoint = waypoints[index];
+            const latlng = new TMap.LatLng(waypoint.latitude, waypoint.longitude);
+            
+            // 移动地图中心到该航点
+            map.setCenter(latlng);
+            map.setZoom(18);
+            
+            console.log('Focused on waypoint:', waypoint);
+        }
+
+        // 删除航点
+        function deleteWaypoint(index) {
+            if (!editMode || index < 0 || index >= waypoints.length) return;
+            
+            // 从数组中删除
+            waypoints.splice(index, 1);
+            
+            // 重新渲染地图标记
+            waypointMarkers.forEach(marker => marker.setMap(null));
+            waypointMarkers = [];
+            
+            waypoints.forEach((waypoint, i) => {
+                addWaypointToMap(waypoint);
+            });
+            
+            // 更新飞行路径
+            updateFlightPath();
+            
+            // 更新航点列表
+            updateWaypointsList();
+            
+            // 更新路线信息
+            updateRouteInfo();
+            
+            console.log('Deleted waypoint at index:', index);
+        }
+
+        // 更新路线信息显示
+        function updateRouteInfo() {
+            const routeName = document.getElementById('routeName');
+            const routeWaypointCount = document.getElementById('routeWaypointCount');
+            const routeDistance = document.getElementById('routeDistance');
+            const routeDuration = document.getElementById('routeDuration');
+            
+            if (!routeName || !routeWaypointCount || !routeDistance || !routeDuration) return;
+            
+            // 更新路线名称
+            routeName.textContent = routeData.routeName || '未命名路线';
+            
+            // 更新航点数量
+            routeWaypointCount.textContent = waypoints.length;
+            
+            // 计算总距离
+            const totalDistance = calculateTotalDistance();
+            routeDistance.textContent = totalDistance > 0 ? `${totalDistance.toFixed(2)}km` : '-';
+            
+            // 计算预计时长（假设平均速度30km/h）
+            const estimatedDuration = totalDistance > 0 ? Math.round(totalDistance / 30 * 60) : 0;
+            routeDuration.textContent = estimatedDuration > 0 ? `${estimatedDuration}分钟` : '-';
+        }
+
+        // 计算总距离
+        function calculateTotalDistance() {
+            if (waypoints.length < 2) return 0;
+            
+            let totalDistance = 0;
+            for (let i = 0; i < waypoints.length - 1; i++) {
+                const distance = calculateDistance(
+                    waypoints[i].latitude, waypoints[i].longitude,
+                    waypoints[i + 1].latitude, waypoints[i + 1].longitude
+                );
+                totalDistance += distance;
+            }
+            
+            return totalDistance;
+        }
+
+        // 计算两点间距离（公里）
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // 地球半径（公里）
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
     </script>
 </body>
 </html>
+
 
