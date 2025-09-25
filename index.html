@@ -47,21 +47,51 @@
             background: #FF3B30;
         }
         
+        .top-controls {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
         .left-panel {
             position: absolute;
             top: 0;
             left: 0;
-            width: 300px;
+            width: 280px;
             height: 100vh;
             background: rgba(0,0,0,0.9);
             color: white;
             z-index: 1000;
-            transform: translateX(-250px);
+            transform: translateX(-230px);
             transition: transform 0.3s ease;
             display: flex;
         }
         
         .left-panel.expanded {
+            transform: translateX(0);
+        }
+        
+        .right-panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 280px;
+            height: 100vh;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            z-index: 1000;
+            transform: translateX(230px);
+            transition: transform 0.3s ease;
+            display: flex;
+        }
+        
+        .right-panel.expanded {
             transform: translateX(0);
         }
         
@@ -72,9 +102,16 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            border-radius: 0 10px 10px 0;
             font-size: 18px;
             color: white;
+        }
+        
+        .left-panel .panel-toggle {
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .right-panel .panel-toggle {
+            border-radius: 10px 0 0 10px;
         }
         
         .panel-content {
@@ -83,14 +120,13 @@
             overflow-y: auto;
         }
         
-        .panel-section {
-            margin-bottom: 25px;
-        }
-        
         .section-header {
             margin-bottom: 15px;
             padding-bottom: 10px;
             border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .section-header h3 {
@@ -99,10 +135,9 @@
             color: #FFD700;
         }
         
-        .control-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .waypoint-count {
+            font-size: 12px;
+            color: #999;
         }
         
         .info-panel {
@@ -173,19 +208,6 @@
             max-width: 300px;
         }
         
-        .waypoints-panel {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 300px;
-            max-height: 400px;
-            z-index: 1000;
-            overflow-y: auto;
-        }
         
         .panel-header {
             display: flex;
@@ -351,60 +373,56 @@
         <button class="control-btn" onclick="location.reload()" style="margin-top: 10px;">重新加载</button>
     </div>
     
-    <!-- 左侧可拉伸面板 -->
+    <!-- 顶部操作控制按钮 -->
+    <div class="top-controls">
+        <button class="control-btn" onclick="addWaypoint()">添加航点</button>
+        <button class="control-btn" onclick="clearWaypoints()">清空航点</button>
+        <button class="control-btn" onclick="resetView()">重置视角</button>
+        <button class="control-btn" onclick="finishEditing()" style="background: #34C759;">完成编辑</button>
+    </div>
+
+    <!-- 左侧路线信息面板 -->
     <div class="left-panel" id="leftPanel">
         <div class="panel-toggle" onclick="toggleLeftPanel()">
-            <span id="panelToggleIcon">◀</span>
+            <span id="leftPanelToggleIcon">◀</span>
         </div>
-        
         <div class="panel-content">
-            <!-- 路线信息 -->
-            <div class="panel-section">
-                <div class="section-header">
-                    <h3>路线信息</h3>
-                </div>
-                <div class="route-info-content">
-                    <div class="route-name" id="routeName">未命名路线</div>
-                    <div class="route-stats">
-                        <div class="stat-item">
-                            <span class="stat-label">航点数量:</span>
-                            <span class="stat-value" id="routeWaypointCount">0</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">总距离:</span>
-                            <span class="stat-value" id="routeDistance">-</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">预计时长:</span>
-                            <span class="stat-value" id="routeDuration">-</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="section-header">
+                <h3>路线信息</h3>
             </div>
-            
-            <!-- 控制按钮 -->
-            <div class="panel-section">
-                <div class="section-header">
-                    <h3>操作控制</h3>
-                </div>
-                <div class="control-buttons">
-                    <button class="control-btn" onclick="addWaypoint()">添加航点</button>
-                    <button class="control-btn" onclick="clearWaypoints()">清空航点</button>
-                    <button class="control-btn" onclick="resetView()">重置视角</button>
-                    <button class="control-btn" onclick="finishEditing()" style="background: #34C759;">完成编辑</button>
+            <div class="route-info-content">
+                <div class="route-name" id="routeName">未命名路线</div>
+                <div class="route-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">航点数量:</span>
+                        <span class="stat-value" id="routeWaypointCount">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">总距离:</span>
+                        <span class="stat-value" id="routeDistance">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">预计时长:</span>
+                        <span class="stat-value" id="routeDuration">-</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <!-- 航点列表面板 -->
-    <div class="waypoints-panel" id="waypointsPanel">
-        <div class="panel-header">
-            <h3>航点列表</h3>
-            <span class="waypoint-count" id="waypointCount">共0个航点</span>
+
+    <!-- 右侧航点列表面板 -->
+    <div class="right-panel" id="rightPanel">
+        <div class="panel-toggle" onclick="toggleRightPanel()">
+            <span id="rightPanelToggleIcon">▶</span>
         </div>
-        <div class="waypoints-list" id="waypointsList">
-            <!-- 航点列表将在这里动态生成 -->
+        <div class="panel-content">
+            <div class="section-header">
+                <h3>航点列表</h3>
+                <span class="waypoint-count" id="waypointCount">共0个航点</span>
+            </div>
+            <div class="waypoints-list" id="waypointsList">
+                <!-- 航点列表将在这里动态生成 -->
+            </div>
         </div>
     </div>
     
@@ -673,7 +691,7 @@
         // 切换左侧面板显示/隐藏
         function toggleLeftPanel() {
             const leftPanel = document.getElementById('leftPanel');
-            const toggleIcon = document.getElementById('panelToggleIcon');
+            const toggleIcon = document.getElementById('leftPanelToggleIcon');
             
             leftPanel.classList.toggle('expanded');
             
@@ -681,6 +699,20 @@
                 toggleIcon.textContent = '▶';
             } else {
                 toggleIcon.textContent = '◀';
+            }
+        }
+        
+        // 切换右侧面板显示/隐藏
+        function toggleRightPanel() {
+            const rightPanel = document.getElementById('rightPanel');
+            const toggleIcon = document.getElementById('rightPanelToggleIcon');
+            
+            rightPanel.classList.toggle('expanded');
+            
+            if (rightPanel.classList.contains('expanded')) {
+                toggleIcon.textContent = '◀';
+            } else {
+                toggleIcon.textContent = '▶';
             }
         }
         
@@ -694,7 +726,14 @@
         
         // 添加航点（点击地图）
         function addWaypoint() {
-            if (!editMode) return;
+            console.log('Add waypoint button clicked');
+            console.log('Current edit mode:', editMode);
+            
+            // 确保在编辑模式
+            if (!editMode) {
+                console.log('Not in edit mode, setting edit mode to true');
+                editMode = true;
+            }
             
             // 移除之前的点击事件监听（避免重复绑定）
             map.off('click', onMapClick);
@@ -710,9 +749,17 @@
         
         // 地图点击事件
         function onMapClick(event) {
-            if (!editMode) return;
+            console.log('Map clicked!', event);
+            console.log('Edit mode:', editMode);
+            
+            if (!editMode) {
+                console.log('Not in edit mode, ignoring click');
+                return;
+            }
             
             const latlng = event.latlng;
+            console.log('Click coordinates:', latlng);
+            
             const waypoint = {
                 latitude: latlng.lat,
                 longitude: latlng.lng,
@@ -733,6 +780,7 @@
             updateRouteInfo();
             
             console.log('Added waypoint:', waypoint);
+            console.log('Total waypoints:', waypoints.length);
         }
         
         // 在地图上添加航点标记
