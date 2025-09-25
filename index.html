@@ -19,13 +19,7 @@
         }
         
         .controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+            display: none; /* 隐藏原来的控制面板 */
         }
         
         .control-btn {
@@ -53,33 +47,62 @@
             background: #FF3B30;
         }
         
-        .mode-toggle {
+        .left-panel {
             position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 1000;
-            display: flex;
-            gap: 5px;
-        }
-        
-        .mode-btn {
-            padding: 8px 16px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            border: 1px solid #555;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s ease;
-        }
-        
-        .mode-btn:hover {
+            top: 0;
+            left: 0;
+            width: 300px;
+            height: 100vh;
             background: rgba(0,0,0,0.9);
+            color: white;
+            z-index: 1000;
+            transform: translateX(-250px);
+            transition: transform 0.3s ease;
+            display: flex;
         }
         
-        .mode-btn.active {
-            background: #007AFF;
-            border-color: #007AFF;
+        .left-panel.expanded {
+            transform: translateX(0);
+        }
+        
+        .panel-toggle {
+            width: 50px;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 0 10px 10px 0;
+            font-size: 18px;
+            color: white;
+        }
+        
+        .panel-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .panel-section {
+            margin-bottom: 25px;
+        }
+        
+        .section-header {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .section-header h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #FFD700;
+        }
+        
+        .control-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
         
         .info-panel {
@@ -153,7 +176,7 @@
         .waypoints-panel {
             position: absolute;
             bottom: 20px;
-            left: 20px;
+            right: 20px;
             background: rgba(0, 0, 0, 0.9);
             color: white;
             padding: 20px;
@@ -328,75 +351,49 @@
         <button class="control-btn" onclick="location.reload()" style="margin-top: 10px;">重新加载</button>
     </div>
     
-    <!-- 模式切换按钮 -->
-    <div class="mode-toggle">
-        <button id="editModeBtn" class="mode-btn active" onclick="switchToEditMode()">编辑模式</button>
-        <button id="previewModeBtn" class="mode-btn" onclick="switchToPreviewMode()">预览模式</button>
-    </div>
-
-    <!-- 控制面板 -->
-    <div class="controls">
-        <!-- 编辑模式控制 -->
-        <div id="editControls" style="display: none;">
-            <button class="control-btn" onclick="addWaypoint()">添加航点</button>
-            <button class="control-btn" onclick="clearWaypoints()">清空航点</button>
-            <button class="control-btn" onclick="finishEditing()" style="background: #34C759;">完成编辑</button>
+    <!-- 左侧可拉伸面板 -->
+    <div class="left-panel" id="leftPanel">
+        <div class="panel-toggle" onclick="toggleLeftPanel()">
+            <span id="panelToggleIcon">◀</span>
         </div>
         
-        <!-- 预览模式控制 -->
-        <div id="previewControls">
-            <button class="control-btn" id="playBtn" onclick="toggleFlight()">开始飞行</button>
-            <button class="control-btn" onclick="resetView()">重置视角</button>
-            <button class="control-btn" onclick="toggleView()">切换视角</button>
-            <button class="control-btn" onclick="toggleSpeed()">调整速度</button>
-        </div>
-    </div>
-    
-    <!-- 编辑模式信息面板 -->
-    <div class="info-panel" id="editInfoPanel" style="display: none;">
-        <div class="panel-header">
-            <h3>路线信息</h3>
-        </div>
-        <div class="route-info-content">
-            <div class="route-name" id="routeName">未命名路线</div>
-            <div class="route-stats">
-                <div class="stat-item">
-                    <span class="stat-label">航点数量:</span>
-                    <span class="stat-value" id="routeWaypointCount">0</span>
+        <div class="panel-content">
+            <!-- 路线信息 -->
+            <div class="panel-section">
+                <div class="section-header">
+                    <h3>路线信息</h3>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">总距离:</span>
-                    <span class="stat-value" id="routeDistance">-</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">预计时长:</span>
-                    <span class="stat-value" id="routeDuration">-</span>
+                <div class="route-info-content">
+                    <div class="route-name" id="routeName">未命名路线</div>
+                    <div class="route-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">航点数量:</span>
+                            <span class="stat-value" id="routeWaypointCount">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">总距离:</span>
+                            <span class="stat-value" id="routeDistance">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">预计时长:</span>
+                            <span class="stat-value" id="routeDuration">-</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- 预览模式信息面板 -->
-    <div class="info-panel" id="previewInfoPanel" style="display: none;">
-        <div class="info-item">
-            <span class="info-label">飞行状态:</span>
-            <span class="info-value" id="flightStatus">准备中</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">当前航点:</span>
-            <span class="info-value" id="currentWaypoint">-</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">飞行高度:</span>
-            <span class="info-value" id="altitude">-</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">飞行速度:</span>
-            <span class="info-value" id="speed">-</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">剩余时间:</span>
-            <span class="info-value" id="remainingTime">-</span>
+            
+            <!-- 控制按钮 -->
+            <div class="panel-section">
+                <div class="section-header">
+                    <h3>操作控制</h3>
+                </div>
+                <div class="control-buttons">
+                    <button class="control-btn" onclick="addWaypoint()">添加航点</button>
+                    <button class="control-btn" onclick="clearWaypoints()">清空航点</button>
+                    <button class="control-btn" onclick="resetView()">重置视角</button>
+                    <button class="control-btn" onclick="finishEditing()" style="background: #34C759;">完成编辑</button>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -421,11 +418,6 @@
         let flightPath = null;
         let waypointMarkers = [];
         let droneMarker = null;
-        let isPlaying = false;
-        let currentView = 'god'; // god, follow, fpv
-        let speedLevel = 1; // 1: 正常, 2: 快速, 0.5: 慢速
-        let flightTimer = null;
-        let currentWaypointIndex = 0;
         let routeData = null;
         
         // 编辑模式相关变量
@@ -446,6 +438,7 @@
             console.log('HTML: editMode =', editMode);
             
             if (editMode) {
+                console.log('HTML: Entering edit mode');
                 // 编辑模式：检查是否有现有路线数据
                 if (routeDataStr) {
                     // 编辑现有路线
@@ -469,9 +462,9 @@
                         routeName: '自定义3D路线'
                     };
                     waypoints = [];
+                    console.log('HTML: Created new route with empty waypoints');
                 }
                 updateEditControls();
-                updateModeUI();
             } else if (routeDataStr) {
                 // 预览模式：加载现有路线数据
                 try {
@@ -492,8 +485,7 @@
                 waypoints = [];
             }
             
-            // 更新模式UI
-            updateModeUI();
+            // 由于删除了模式切换功能，这里不需要更新UI
             
             // 初始化地图
             initMap();
@@ -571,21 +563,22 @@
         }
         
         // 添加飞行路径
-        function addFlightPath() {
-            if (!routeData.waypoints || routeData.waypoints.length < 2) {
-                console.log('Not enough waypoints for flight path');
+        // 添加路线路径（仅用于显示）
+        function addRoutePath() {
+            if (!waypoints || waypoints.length < 2) {
+                console.log('Not enough waypoints for route path');
                 return;
             }
             
             try {
                 // 创建路径点
-                const pathPoints = routeData.waypoints.map(wp => 
+                const pathPoints = waypoints.map(wp => 
                     new TMap.LatLng(wp.latitude, wp.longitude)
                 );
                 
                 // 创建路径线
                 flightPath = new TMap.MultiPolyline({
-                    id: 'flightPath',
+                    id: 'routePath',
                     map: map,
                     styles: {
                         'path': new TMap.PolylineStyle({
@@ -600,22 +593,16 @@
                     }]
                 });
                 
-                // 添加航点标记
-                addWaypointMarkers();
-                
-                // 添加无人机标记
-                addDroneMarker();
-                
-                console.log('Flight path added with', routeData.waypoints.length, 'waypoints');
+                console.log('Route path added with', waypoints.length, 'waypoints');
                 
             } catch (error) {
-                console.error('Failed to add flight path:', error);
+                console.error('Failed to add route path:', error);
             }
         }
         
         // 添加航点标记
         function addWaypointMarkers() {
-            routeData.waypoints.forEach((wp, index) => {
+            waypoints.forEach((wp, index) => {
                 const marker = new TMap.MultiMarker({
                     id: `waypoint_${index}`,
                     map: map,
@@ -649,254 +636,17 @@
             return 'data:image/svg+xml;base64,' + btoa(svg);
         }
         
-        // 添加无人机标记
-        function addDroneMarker() {
-            if (routeData.waypoints.length === 0) return;
-            
-            const firstWaypoint = routeData.waypoints[0];
-            droneMarker = new TMap.MultiMarker({
-                id: 'drone',
-                map: map,
-                styles: {
-                    'drone': new TMap.MarkerStyle({
-                        width: 30,
-                        height: 30,
-                        anchor: { x: 15, y: 15 },
-                        src: createDroneIcon()
-                    })
-                },
-                geometries: [{
-                    id: 'drone_marker',
-                    styleId: 'drone',
-                    position: new TMap.LatLng(firstWaypoint.latitude, firstWaypoint.longitude)
-                }]
-            });
-        }
-        
-        // 创建无人机图标
-        function createDroneIcon() {
-            const svg = `
-                <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <!-- 无人机主体 -->
-                    <ellipse cx="15" cy="15" rx="8" ry="4" fill="#FF6B35" stroke="white" stroke-width="1.5"/>
-                    <!-- 螺旋桨臂 -->
-                    <line x1="8" y1="15" x2="22" y2="15" stroke="white" stroke-width="2"/>
-                    <line x1="15" y1="8" x2="15" y2="22" stroke="white" stroke-width="2"/>
-                    <!-- 螺旋桨 -->
-                    <circle cx="8" cy="15" r="3" fill="none" stroke="white" stroke-width="1.5"/>
-                    <circle cx="22" cy="15" r="3" fill="none" stroke="white" stroke-width="1.5"/>
-                    <circle cx="15" cy="8" r="3" fill="none" stroke="white" stroke-width="1.5"/>
-                    <circle cx="15" cy="22" r="3" fill="none" stroke="white" stroke-width="1.5"/>
-                    <!-- 中心点 -->
-                    <circle cx="15" cy="15" r="2" fill="white"/>
-                </svg>
-            `;
-            return 'data:image/svg+xml;base64,' + btoa(svg);
-        }
-        
-        // 切换飞行状态
-        function toggleFlight() {
-            if (isPlaying) {
-                pauseFlight();
-            } else {
-                startFlight();
-            }
-        }
-        
-        // 开始飞行
-        function startFlight() {
-            if (!routeData.waypoints || routeData.waypoints.length < 2) {
-                alert('航点数量不足，无法开始飞行');
-                return;
-            }
-            
-            isPlaying = true;
-            currentWaypointIndex = 0;
-            
-            document.getElementById('playBtn').textContent = '暂停飞行';
-            document.getElementById('playBtn').classList.add('active');
-            document.getElementById('flightStatus').textContent = '飞行中';
-            
-            // 开始飞行动画
-            startFlightAnimation();
-            
-            console.log('Flight started');
-        }
-        
-        // 暂停飞行
-        function pauseFlight() {
-            isPlaying = false;
-            
-            document.getElementById('playBtn').textContent = '开始飞行';
-            document.getElementById('playBtn').classList.remove('active');
-            document.getElementById('flightStatus').textContent = '已暂停';
-            
-            if (flightTimer) {
-                clearInterval(flightTimer);
-                flightTimer = null;
-            }
-            
-            console.log('Flight paused');
-        }
-        
-        // 开始飞行动画
-        function startFlightAnimation() {
-            const totalWaypoints = routeData.waypoints.length;
-            const flightDuration = totalWaypoints * 3 * 1000; // 每个航点3秒
-            const interval = 100; // 更新间隔100ms
-            
-            let progress = 0;
-            
-            flightTimer = setInterval(() => {
-                if (!isPlaying) return;
-                
-                progress += interval;
-                const totalProgress = progress / flightDuration;
-                
-                if (totalProgress >= 1) {
-                    // 飞行完成
-                    completeFlight();
-                    return;
-                }
-                
-                // 计算当前航点索引
-                const waypointProgress = totalProgress * (totalWaypoints - 1);
-                const currentIndex = Math.floor(waypointProgress);
-                const nextIndex = Math.min(currentIndex + 1, totalWaypoints - 1);
-                const segmentProgress = waypointProgress - currentIndex;
-                
-                // 更新无人机位置
-                updateDronePosition(currentIndex, nextIndex, segmentProgress);
-                
-                // 更新信息面板
-                updateFlightInfo(currentIndex, segmentProgress);
-                
-            }, interval);
-        }
-        
-        // 更新无人机位置
-        function updateDronePosition(currentIndex, nextIndex, segmentProgress) {
-            if (!droneMarker || !routeData.waypoints) return;
-            
-            const currentWp = routeData.waypoints[currentIndex];
-            const nextWp = routeData.waypoints[nextIndex];
-            
-            // 插值计算当前位置
-            const lat = currentWp.latitude + (nextWp.latitude - currentWp.latitude) * segmentProgress;
-            const lng = currentWp.longitude + (nextWp.longitude - currentWp.longitude) * segmentProgress;
-            const alt = currentWp.altitude + (nextWp.altitude - currentWp.altitude) * segmentProgress;
-            
-            // 更新无人机位置
-            droneMarker.setGeometries([{
-                id: 'drone_marker',
-                styleId: 'drone',
-                position: new TMap.LatLng(lat, lng)
-            }]);
-            
-            // 更新摄像机视角
-            if (currentView === 'follow') {
-                map.setCenter(new TMap.LatLng(lat, lng));
-            }
-        }
-        
-        // 更新飞行信息
-        function updateFlightInfo(currentIndex, segmentProgress) {
-            const currentWp = routeData.waypoints[currentIndex];
-            const nextWp = routeData.waypoints[Math.min(currentIndex + 1, routeData.waypoints.length - 1)];
-            
-            // 计算当前高度
-            const altitude = currentWp.altitude + (nextWp.altitude - currentWp.altitude) * segmentProgress;
-            
-            // 计算飞行速度
-            const speed = 15 * speedLevel; // 基础速度15m/s
-            
-            // 计算剩余时间
-            const remainingWaypoints = routeData.waypoints.length - currentIndex - 1;
-            const remainingTime = remainingWaypoints * 3 / speedLevel; // 每个航点3秒
-            
-            // 更新UI
-            document.getElementById('currentWaypoint').textContent = `${currentIndex + 1}/${routeData.waypoints.length}`;
-            document.getElementById('altitude').textContent = `${Math.round(altitude)}m`;
-            document.getElementById('speed').textContent = `${Math.round(speed)}m/s`;
-            document.getElementById('remainingTime').textContent = `${Math.round(remainingTime)}s`;
-        }
-        
-        // 完成飞行
-        function completeFlight() {
-            isPlaying = false;
-            
-            document.getElementById('playBtn').textContent = '重新飞行';
-            document.getElementById('playBtn').classList.remove('active');
-            document.getElementById('flightStatus').textContent = '飞行完成';
-            
-            if (flightTimer) {
-                clearInterval(flightTimer);
-                flightTimer = null;
-            }
-            
-            // 显示完成提示
-            setTimeout(() => {
-                alert('飞行预览完成！');
-            }, 500);
-            
-            console.log('Flight completed');
-        }
         
         // 重置视角
         function resetView() {
             if (!map) return;
             
-             const center = routeData.waypoints && routeData.waypoints.length > 0 
-                 ? new TMap.LatLng(routeData.waypoints[0].latitude, routeData.waypoints[0].longitude)
-                 : new TMap.LatLng(35.09260704247744, 111.06575713601103);
-            
-            map.setCenter(center);
-            map.setZoom(16);
-            map.setPitch(45);
-            map.setRotation(0);
+            map.setCenter(new TMap.LatLng(35.09260704247744, 111.06575713601103));
+            map.setZoom(20);
+            map.setPitch(57.5);
+            map.setRotation(349.4);
             
             console.log('View reset');
-        }
-        
-        // 切换视角
-        function toggleView() {
-            if (!map) return;
-            
-            switch (currentView) {
-                case 'god':
-                    currentView = 'follow';
-                    map.setPitch(30);
-                    console.log('Switched to follow view');
-                    break;
-                case 'follow':
-                    currentView = 'fpv';
-                    map.setPitch(0);
-                    console.log('Switched to FPV view');
-                    break;
-                case 'fpv':
-                    currentView = 'god';
-                    map.setPitch(45);
-                    console.log('Switched to god view');
-                    break;
-            }
-        }
-        
-        // 调整速度
-        function toggleSpeed() {
-            switch (speedLevel) {
-                case 1:
-                    speedLevel = 2;
-                    console.log('Speed: Fast (2x)');
-                    break;
-                case 2:
-                    speedLevel = 0.5;
-                    console.log('Speed: Slow (0.5x)');
-                    break;
-                case 0.5:
-                    speedLevel = 1;
-                    console.log('Speed: Normal (1x)');
-                    break;
-            }
         }
         
         // 显示错误
@@ -918,39 +668,19 @@
             }
         });
         
-        // ==================== 模式切换函数 ====================
+        // ==================== 面板控制函数 ====================
         
-        // 切换到编辑模式
-        function switchToEditMode() {
-            editMode = true;
-            updateModeUI();
-            updateEditControls();
-        }
-        
-        // 切换到预览模式
-        function switchToPreviewMode() {
-            editMode = false;
-            updateModeUI();
-            updateEditControls();
-        }
-        
-        // 更新模式UI显示
-        function updateModeUI() {
-            const editModeBtn = document.getElementById('editModeBtn');
-            const previewModeBtn = document.getElementById('previewModeBtn');
-            const editInfoPanel = document.getElementById('editInfoPanel');
-            const previewInfoPanel = document.getElementById('previewInfoPanel');
+        // 切换左侧面板显示/隐藏
+        function toggleLeftPanel() {
+            const leftPanel = document.getElementById('leftPanel');
+            const toggleIcon = document.getElementById('panelToggleIcon');
             
-            if (editMode) {
-                editModeBtn.classList.add('active');
-                previewModeBtn.classList.remove('active');
-                editInfoPanel.style.display = 'block';
-                previewInfoPanel.style.display = 'none';
+            leftPanel.classList.toggle('expanded');
+            
+            if (leftPanel.classList.contains('expanded')) {
+                toggleIcon.textContent = '▶';
             } else {
-                editModeBtn.classList.remove('active');
-                previewModeBtn.classList.add('active');
-                editInfoPanel.style.display = 'none';
-                previewInfoPanel.style.display = 'block';
+                toggleIcon.textContent = '◀';
             }
         }
         
@@ -958,16 +688,8 @@
         
         // 更新编辑控制面板显示
         function updateEditControls() {
-            const editControls = document.getElementById('editControls');
-            const previewControls = document.getElementById('previewControls');
-            
-            if (editMode) {
-                editControls.style.display = 'block';
-                previewControls.style.display = 'none';
-            } else {
-                editControls.style.display = 'none';
-                previewControls.style.display = 'block';
-            }
+            // 由于已经删除了飞行预览功能，这个函数现在不需要做任何事情
+            console.log('Edit mode:', editMode);
         }
         
         // 添加航点（点击地图）
@@ -1000,7 +722,7 @@
             
             waypoints.push(waypoint);
             addWaypointToMap(waypoint);
-            updateFlightPath();
+            updateRoutePath();
             updateWaypointsList(); // 更新航点列表
             
             // 移除点击事件监听
@@ -1035,8 +757,8 @@
             waypointMarkers.push(marker);
         }
         
-        // 更新飞行路径
-        function updateFlightPath() {
+        // 更新路线路径
+        function updateRoutePath() {
             if (waypoints.length < 2) return;
             
             // 清除现有路径
@@ -1181,7 +903,7 @@
             });
             
             // 更新飞行路径
-            updateFlightPath();
+            updateRoutePath();
             
             // 更新航点列表
             updateWaypointsList();
@@ -1259,7 +981,7 @@
             });
             
             // 更新飞行路径
-            updateFlightPath();
+            updateRoutePath();
             
             // 更新航点列表
             updateWaypointsList();
@@ -1324,5 +1046,6 @@
     </script>
 </body>
 </html>
+
 
 
